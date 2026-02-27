@@ -812,11 +812,8 @@ def _check_anomaly(txn: dict, ref_txns: list) -> dict:
 
     # ── n = 1-2: Gegenpartei bekannt, aber zu wenig Daten ─────────────────────
     # insufficient_data: is_anomaly=False → KEIN Ausschluss aus Recurring!
-    # Diese Transaktionen sollen normal zu Recurring-Gruppen beitragen können.
+    # Logging passiert in _run_anomaly einmal pro Gruppe, nicht hier.
     if n < CFG["anomaly_min_ref_txns"]:
-        _log(f"  ℹ️  INSUFFICIENT_DATA: {txn['gegenpartei']} (n={n}) "
-             f"→ zu wenig Daten für Statistik, kein Recurring-Ausschluss")
-        # Kein Eintrag in anomaly_idx → Recurring kann diese Txn verwenden
         return p
 
     # ── n >= 3: Statistischer Vergleich ────────────────────────────────────────
@@ -886,8 +883,8 @@ def _run_anomaly(transactions: list) -> dict:
 
     Rückgabe: dict idx → anomaly_fields
     NUR Transaktionen mit is_anomaly=True landen hier.
-    insufficient_data (is_anomaly=False) wird geloggt aber NICHT zurückgegeben
-    → kein Ausschluss aus Recurring.
+    insufficient_data (is_anomaly=False) wird EINMAL pro Gruppe geloggt
+    (nicht pro Transaktion) und NICHT zurückgegeben → kein Ausschluss aus Recurring.
     """
     groups = defaultdict(list)
     for i, t in enumerate(transactions):
@@ -896,9 +893,21 @@ def _run_anomaly(transactions: list) -> dict:
 
     result = {}
     for key, entries in groups.items():
+        n_group = len(entries)
+        logged_insufficient = False  # Pro Gruppe nur einmal loggen
+
         for pos, (idx, txn) in enumerate(entries):
-            ref = [t for j, (_, t) in enumerate(entries) if j != pos]
-            a   = _check_anomaly(txn, ref)
+            ref   = [t for j, (_, t) in enumerate(entries) if j != pos]
+            n_ref = len(ref)
+
+            # insufficient_data: einmal pro Gruppe loggen, nicht pro Transaktion
+            if 0 < n_ref < CFG["anomaly_min_ref_txns"] and not logged_insufficient:
+                _log(f"  ℹ️  INSUFFICIENT_DATA: {txn['gegenpartei']} "
+                     f"({n_group} Transaktionen, n={n_ref} Referenzen) "
+                     f"→ zu wenig Daten für Statistik, kein Recurring-Ausschluss")
+                logged_insufficient = True
+
+            a = _check_anomaly(txn, ref)
             # Nur echte Anomalien (is_anomaly=True) in Ergebnis aufnehmen
             if a["is_anomaly"]:
                 result[idx] = a
@@ -1409,7 +1418,18 @@ if __name__ == "__main__":
     import sys
     import os
 
-    INPUT_FILE = "tink_categorized.json"
+    # ── Eingabedatei bestimmen ────────────────────────────────────────────────
+    # Aufruf-Varianten:
+    #   python detect_patterns.py                          → Fallback: tink_categorized.json
+    #   python detect_patterns.py meine_daten.json        → beliebige kategorisierte JSON
+    #   python detect_patterns.py /pfad/zur/datei.json    → absoluter Pfad
+    #
+    # Format der JSON: Liste von Transaktionen mit mindestens:
+    #   datum, betrag, verwendungszweck, gegenpartei
+    # Optional (verbessert Pattern-Qualität):
+    #   category_level1, iban / iban_gegenpartei / counterparty_iban
+    DEFAULT_INPUT = "tink_categorized.json"
+    INPUT_FILE    = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_INPUT
 
     # ── Startbanner ───────────────────────────────────────────────────────────
     _log("=" * 70)
@@ -1419,6 +1439,7 @@ if __name__ == "__main__":
     _log("  Kein KI-Call. Reine Statistik + Datumsberechnungen.")
     _log("  Fixes: #1 insufficient_data | #2/#3 Referenz-Log | #4 Sequential")
     _log("         #5 Inflation nur Ausgaben | #6 Min-n strenger | #7 IBAN | #8 Cache")
+    _log(f"  Eingabe : {INPUT_FILE}")
     _log("=" * 70)
 
     # ── Kalender-Selbsttest ───────────────────────────────────────────────────
