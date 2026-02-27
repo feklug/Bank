@@ -1,0 +1,692 @@
+[
+  {
+    "datum": "2025-01-01",
+    "betrag": -4500.00,
+    "verwendungszweck": "MÜB GWR IMMOB AG MT 01/25",
+    "gegenpartei": "Gewerberaum Immobilien AG"
+  },
+  {
+    "datum": "2025-01-25",
+    "betrag": -6200.00,
+    "verwendungszweck": "LST SAL JAN 2025 MÜLLER MAX",
+    "gegenpartei": "Max Müller"
+  },
+  {
+    "datum": "2025-01-25",
+    "betrag": -5800.00,
+    "verwendungszweck": "LST SAL JAN 2025 SCHNEIDER ANNA",
+    "gegenpartei": "Anna Schneider"
+  },
+  {
+    "datum": "2025-01-25",
+    "betrag": -4900.00,
+    "verwendungszweck": "LST SAL JAN 2025 WEBER THOMAS",
+    "gegenpartei": "Thomas Weber"
+  },
+  {
+    "datum": "2025-01-28",
+    "betrag": -1840.50,
+    "verwendungszweck": "AHV/IV/EO Beiträge Januar 2025 Arbeitgeberanteil",
+    "gegenpartei": "Ausgleichskasse Zürich"
+  },
+  {
+    "datum": "2025-01-28",
+    "betrag": -620.00,
+    "verwendungszweck": "BVG Beiträge Januar 2025",
+    "gegenpartei": "Sammelstiftung BVG Helvetia"
+  },
+  {
+    "datum": "2025-01-10",
+    "betrag": 12500.00,
+    "verwendungszweck": "GUTSCHR Rechnung 2024-112 Beratungsleistung Dezember",
+    "gegenpartei": "Technik Lösungen Bärtschi GmbH"
+  },
+  {
+    "datum": "2025-01-15",
+    "betrag": 8750.00,
+    "verwendungszweck": "GUTSCHR RE 2024-118 Projektabschluss Phase 2",
+    "gegenpartei": "Handels AG Fröhlich"
+  },
+  {
+    "datum": "2025-01-07",
+    "betrag": -289.00,
+    "verwendungszweck": "Microsoft 365 Business Abo Januar 2025",
+    "gegenpartei": "Microsoft Ireland Operations Ltd"
+  },
+  {
+    "datum": "2025-01-07",
+    "betrag": -49.00,
+    "verwendungszweck": "Slack Technologies Monatsabo",
+    "gegenpartei": "Slack Technologies Inc"
+  },
+  {
+    "datum": "2025-01-08",
+    "betrag": -890.00,
+    "verwendungszweck": "Lieferantenrechnung Nr. 5541 Büromaterial Januar",
+    "gegenpartei": "Bürocenter Huber AG"
+  },
+  {
+    "datum": "2025-01-14",
+    "betrag": -3200.00,
+    "verwendungszweck": "SEPA Überweisung Wartungsvertrag IT Infrastruktur Q1",
+    "gegenpartei": "Netzwerk Profis GmbH"
+  },
+  {
+    "datum": "2025-01-20",
+    "betrag": 5200.00,
+    "verwendungszweck": "GUTSCHR Zahlung Rechnung 2025-003",
+    "gegenpartei": "Bau AG Steiner"
+  },
+  {
+    "datum": "2025-01-22",
+    "betrag": -155.00,
+    "verwendungszweck": "Postfinance Kontoführungsgebühr Q4 2024",
+    "gegenpartei": "PostFinance AG"
+  },
+  {
+    "datum": "2025-01-29",
+    "betrag": -540.00,
+    "verwendungszweck": "MWST Abrechnung Q4 2024 Ref. 7823-AA",
+    "gegenpartei": "Eidg. Steuerverwaltung ESTV"
+  },
+  {
+    "datum": "2025-01-31",
+    "betrag": 50000.00,
+    "verwendungszweck": "UMBUCHUNG Kto 4412 nach Kto 4410 Liquiditätsausgleich",
+    "gegenpartei": "Eigenes Konto 4412"
+  },
+  {
+    "datum": "2025-02-01",
+    "betrag": -4500.00,
+    "verwendungszweck": "MÜB GWR IMMOB AG MT 02/25",
+    "gegenpartei": "Gewerberaum Immobilien AG"
+  },
+  {
+    "datum": "2025-02-25",
+    "betrag": -6200.00,
+    "verwendungszweck": "LST SAL FEB 2025 MÜLLER MAX",
+    "gegenpartei": "Max Müller"
+  },
+  {
+    "datum": "2025-02-25",
+    "betrag": -5800.00,
+    "verwendungszweck": "LST SAL FEB 2025 SCHNEIDER ANNA",
+    "gegenpartei": "Anna Schneider"
+  },
+  {
+    "datum": "2025-02-25",
+    "betrag": -5150.00,
+    "verwendungszweck": "LST SAL FEB 2025 WEBER THOMAS INKL BONUS",
+    "gegenpartei": "Thomas Weber"
+  },
+  {
+    "datum": "2025-02-27",
+    "betrag": -1840.50,
+    "verwendungszweck": "AHV/IV/EO Beiträge Februar 2025",
+    "gegenpartei": "Ausgleichskasse Zürich"
+  },
+  {
+    "datum": "2025-02-27",
+    "betrag": -620.00,
+    "verwendungszweck": "BVG Beiträge Februar 2025",
+    "gegenpartei": "Sammelstiftung BVG Helvetia"
+  },
+  {
+    "datum": "2025-02-06",
+    "betrag": 13100.00,
+    "verwendungszweck": "GUTSCHR RE 2025-008 Beratung Januar",
+    "gegenpartei": "Technik Lösungen Bärtschi GmbH"
+  },
+  {
+    "datum": "2025-02-12",
+    "betrag": 9200.00,
+    "verwendungszweck": "GUTSCHR Zahlung offene Rechnung 2025-007",
+    "gegenpartei": "Handels AG Fröhlich"
+  },
+  {
+    "datum": "2025-02-07",
+    "betrag": -289.00,
+    "verwendungszweck": "Microsoft 365 Business Abo Februar 2025",
+    "gegenpartei": "Microsoft Ireland Operations Ltd"
+  },
+  {
+    "datum": "2025-02-07",
+    "betrag": -49.00,
+    "verwendungszweck": "Slack Technologies Monatsabo Feb",
+    "gegenpartei": "Slack Technologies Inc"
+  },
+  {
+    "datum": "2025-02-10",
+    "betrag": -74.90,
+    "verwendungszweck": "Zoom Video Comm. Monatsabo",
+    "gegenpartei": "Zoom Video Communications Inc"
+  },
+  {
+    "datum": "2025-02-11",
+    "betrag": -460.00,
+    "verwendungszweck": "Büromaterial Rechnung 5598",
+    "gegenpartei": "Bürocenter Huber AG"
+  },
+  {
+    "datum": "2025-02-14",
+    "betrag": -18900.00,
+    "verwendungszweck": "ÜW 4234 M. HOLDING AG REF 0298-B",
+    "gegenpartei": "M. Holding AG"
+  },
+  {
+    "datum": "2025-02-18",
+    "betrag": 6800.00,
+    "verwendungszweck": "GUTSCHR Zahlung RE 2025-010",
+    "gegenpartei": "Bau AG Steiner"
+  },
+  {
+    "datum": "2025-02-20",
+    "betrag": -2100.00,
+    "verwendungszweck": "LST SPESEN FEB 25 REISEKOSTEN",
+    "gegenpartei": "Max Müller"
+  },
+  {
+    "datum": "2025-02-21",
+    "betrag": -890.00,
+    "verwendungszweck": "GS MWST Vorauszahlung 2025-2",
+    "gegenpartei": "Eidg. Steuerverwaltung ESTV"
+  },
+  {
+    "datum": "2025-02-24",
+    "betrag": 3400.00,
+    "verwendungszweck": "GUTSCHR SEPA RE 25-011 Neue Kundin",
+    "gegenpartei": "Zürcher Dienstleistungs GmbH"
+  },
+  {
+    "datum": "2025-02-26",
+    "betrag": -1250.00,
+    "verwendungszweck": "Versicherungsprämie Betriebshaftpflicht Q1",
+    "gegenpartei": "Zürich Versicherungs AG"
+  },
+  {
+    "datum": "2025-03-03",
+    "betrag": -4500.00,
+    "verwendungszweck": "MÜB GWR IMMOB AG MT 03/25",
+    "gegenpartei": "Gewerberaum Immobilien AG"
+  },
+  {
+    "datum": "2025-03-25",
+    "betrag": -6200.00,
+    "verwendungszweck": "LST SAL MRZ 2025 MÜLLER MAX",
+    "gegenpartei": "Max Müller"
+  },
+  {
+    "datum": "2025-03-25",
+    "betrag": -5800.00,
+    "verwendungszweck": "LST SAL MRZ 2025 SCHNEIDER ANNA",
+    "gegenpartei": "Anna Schneider"
+  },
+  {
+    "datum": "2025-03-25",
+    "betrag": -4900.00,
+    "verwendungszweck": "LST SAL MRZ 2025 WEBER THOMAS",
+    "gegenpartei": "Thomas Weber"
+  },
+  {
+    "datum": "2025-03-25",
+    "betrag": -3800.00,
+    "verwendungszweck": "LST SAL MRZ 2025 BRUNNER SARAH",
+    "gegenpartei": "Sarah Brunner"
+  },
+  {
+    "datum": "2025-03-27",
+    "betrag": -2105.20,
+    "verwendungszweck": "AHV/IV/EO FEB/MRZ 2025 AG-ANTEIL",
+    "gegenpartei": "Ausgleichskasse Zürich"
+  },
+  {
+    "datum": "2025-03-27",
+    "betrag": -710.00,
+    "verwendungszweck": "BVG Beiträge März 2025",
+    "gegenpartei": "Sammelstiftung BVG Helvetia"
+  },
+  {
+    "datum": "2025-03-07",
+    "betrag": -289.00,
+    "verwendungszweck": "Microsoft 365 Business Abo März 2025",
+    "gegenpartei": "Microsoft Ireland Operations Ltd"
+  },
+  {
+    "datum": "2025-03-07",
+    "betrag": -49.00,
+    "verwendungszweck": "Slack Technologies Monatsabo März",
+    "gegenpartei": "Slack Technologies Inc"
+  },
+  {
+    "datum": "2025-03-07",
+    "betrag": -74.90,
+    "verwendungszweck": "Zoom Video Comm. Monatsabo März",
+    "gegenpartei": "Zoom Video Communications Inc"
+  },
+  {
+    "datum": "2025-03-10",
+    "betrag": 13600.00,
+    "verwendungszweck": "GUTSCHR RE 2025-015 Beratungsleistung Februar",
+    "gegenpartei": "Technik Lösungen Bärtschi GmbH"
+  },
+  {
+    "datum": "2025-03-14",
+    "betrag": 8830.00,
+    "verwendungszweck": "GUTSCHR Zahlung RE 25-016",
+    "gegenpartei": "Handels AG Fröhlich"
+  },
+  {
+    "datum": "2025-03-17",
+    "betrag": -3200.00,
+    "verwendungszweck": "SEPA Überweisung Wartungsvertrag IT Q2",
+    "gegenpartei": "Netzwerk Profis GmbH"
+  },
+  {
+    "datum": "2025-03-18",
+    "betrag": -18900.00,
+    "verwendungszweck": "ÜW 4234 M. HOLDING AG REF 0298-B",
+    "gegenpartei": "M. Holding AG"
+  },
+  {
+    "datum": "2025-03-19",
+    "betrag": 7100.00,
+    "verwendungszweck": "GUTSCHR RE 2025-017",
+    "gegenpartei": "Bau AG Steiner"
+  },
+  {
+    "datum": "2025-03-20",
+    "betrag": -670.00,
+    "verwendungszweck": "Rechnung 5621 Papier Tintenpatronen Zubehör",
+    "gegenpartei": "Bürocenter Huber AG"
+  },
+  {
+    "datum": "2025-03-21",
+    "betrag": -480.00,
+    "verwendungszweck": "NEBK STROM Q1 2025 REF 98231",
+    "gegenpartei": "EWZ Elektrizitätswerk Zürich"
+  },
+  {
+    "datum": "2025-03-24",
+    "betrag": 3570.00,
+    "verwendungszweck": "GUTSCHR SEPA RE 25-014 Zürcher DL",
+    "gegenpartei": "Zürcher Dienstleistungs GmbH"
+  },
+  {
+    "datum": "2025-03-26",
+    "betrag": -940.00,
+    "verwendungszweck": "Steuerrechnung direkte Bundessteuer 2024 Rate 1",
+    "gegenpartei": "Kantonales Steueramt Zürich"
+  },
+  {
+    "datum": "2025-03-28",
+    "betrag": 15000.00,
+    "verwendungszweck": "UMBUCHUNG Sparkonto nach Betriebskonto monatl. Transfer",
+    "gegenpartei": "Eigenes Sparkonto 8801"
+  },
+  {
+    "datum": "2025-03-31",
+    "betrag": -290.00,
+    "verwendungszweck": "Mobiltelefon Abo Geschäftsanschlüsse März",
+    "gegenpartei": "Swisscom AG"
+  },
+  {
+    "datum": "2025-04-01",
+    "betrag": -4500.00,
+    "verwendungszweck": "MÜB GWR IMMOB AG MT 04/25",
+    "gegenpartei": "Gewerberaum Immobilien AG"
+  },
+  {
+    "datum": "2025-04-24",
+    "betrag": -6200.00,
+    "verwendungszweck": "LST SAL APR 2025 MÜLLER MAX",
+    "gegenpartei": "Max Müller"
+  },
+  {
+    "datum": "2025-04-24",
+    "betrag": -5800.00,
+    "verwendungszweck": "LST SAL APR 2025 SCHNEIDER ANNA",
+    "gegenpartei": "Anna Schneider"
+  },
+  {
+    "datum": "2025-04-24",
+    "betrag": -4900.00,
+    "verwendungszweck": "LST SAL APR 2025 WEBER THOMAS",
+    "gegenpartei": "Thomas Weber"
+  },
+  {
+    "datum": "2025-04-24",
+    "betrag": -3800.00,
+    "verwendungszweck": "LST SAL APR 2025 BRUNNER SARAH",
+    "gegenpartei": "Sarah Brunner"
+  },
+  {
+    "datum": "2025-04-28",
+    "betrag": -2105.20,
+    "verwendungszweck": "AHV/IV/EO APR 2025 AG-ANTEIL",
+    "gegenpartei": "Ausgleichskasse Zürich"
+  },
+  {
+    "datum": "2025-04-28",
+    "betrag": -710.00,
+    "verwendungszweck": "BVG Beiträge April 2025",
+    "gegenpartei": "Sammelstiftung BVG Helvetia"
+  },
+  {
+    "datum": "2025-04-07",
+    "betrag": -289.00,
+    "verwendungszweck": "Microsoft 365 Business Abo April 2025",
+    "gegenpartei": "Microsoft Ireland Operations Ltd"
+  },
+  {
+    "datum": "2025-04-07",
+    "betrag": -49.00,
+    "verwendungszweck": "Slack Technologies April",
+    "gegenpartei": "Slack Technologies Inc"
+  },
+  {
+    "datum": "2025-04-07",
+    "betrag": -74.90,
+    "verwendungszweck": "Zoom Video Comm. Monatsabo April",
+    "gegenpartei": "Zoom Video Communications Inc"
+  },
+  {
+    "datum": "2025-04-09",
+    "betrag": 14200.00,
+    "verwendungszweck": "GUTSCHR RE 2025-022 Beratung März",
+    "gegenpartei": "Technik Lösungen Bärtschi GmbH"
+  },
+  {
+    "datum": "2025-04-11",
+    "betrag": 8400.00,
+    "verwendungszweck": "GUTSCHR RE 25-021",
+    "gegenpartei": "Handels AG Fröhlich"
+  },
+  {
+    "datum": "2025-04-14",
+    "betrag": -1580.00,
+    "verwendungszweck": "ÜW KANZLEI TREUHAND REF 1122-APR",
+    "gegenpartei": "Treuhand Kanzlei Bosshart & Partner"
+  },
+  {
+    "datum": "2025-04-15",
+    "betrag": -289.00,
+    "verwendungszweck": "Microsoft 365 Business Abo April – DOPPELBUCHUNG",
+    "gegenpartei": "Microsoft Ireland Operations Ltd"
+  },
+  {
+    "datum": "2025-04-16",
+    "betrag": -8500.00,
+    "verwendungszweck": "ÜBERWEISUNG 7891 DIVERSE LEISTUNGEN",
+    "gegenpartei": "Consulting Partners AG"
+  },
+  {
+    "datum": "2025-04-17",
+    "betrag": 6950.00,
+    "verwendungszweck": "GUTSCHR Zahlung RE 2025-023",
+    "gegenpartei": "Bau AG Steiner"
+  },
+  {
+    "datum": "2025-04-22",
+    "betrag": 3400.00,
+    "verwendungszweck": "GUTSCHR SEPA Rechnung Apr",
+    "gegenpartei": "Zürcher Dienstleistungs GmbH"
+  },
+  {
+    "datum": "2025-04-23",
+    "betrag": -1240.00,
+    "verwendungszweck": "NEBK Strom Heizung Q1 Nachzahlung EWZ",
+    "gegenpartei": "EWZ Elektrizitätswerk Zürich"
+  },
+  {
+    "datum": "2025-04-25",
+    "betrag": -290.00,
+    "verwendungszweck": "Mobiltelefon Abo Geschäftsanschlüsse April",
+    "gegenpartei": "Swisscom AG"
+  },
+  {
+    "datum": "2025-04-28",
+    "betrag": -750.00,
+    "verwendungszweck": "MWST Vorauszahlung Q2 2025",
+    "gegenpartei": "Eidg. Steuerverwaltung ESTV"
+  },
+  {
+    "datum": "2025-04-29",
+    "betrag": -22000.00,
+    "verwendungszweck": "ÜW 4234 M. HOLDING AG REF 0312-D",
+    "gegenpartei": "M. Holding AG"
+  },
+  {
+    "datum": "2025-04-30",
+    "betrag": -3200.00,
+    "verwendungszweck": "SEPA Wartung IT-Systeme April Quartalsbeitrag",
+    "gegenpartei": "Netzwerk Profis GmbH"
+  },
+  {
+    "datum": "2025-05-02",
+    "betrag": -4500.00,
+    "verwendungszweck": "MÜB GWR IMMOB AG MT 05/25",
+    "gegenpartei": "Gewerberaum Immobilien AG"
+  },
+  {
+    "datum": "2025-05-23",
+    "betrag": -6200.00,
+    "verwendungszweck": "LST SAL MAI 2025 MÜLLER MAX",
+    "gegenpartei": "Max Müller"
+  },
+  {
+    "datum": "2025-05-23",
+    "betrag": -5800.00,
+    "verwendungszweck": "LST SAL MAI 2025 SCHNEIDER ANNA",
+    "gegenpartei": "Anna Schneider"
+  },
+  {
+    "datum": "2025-05-23",
+    "betrag": -4900.00,
+    "verwendungszweck": "LST SAL MAI 2025 WEBER THOMAS",
+    "gegenpartei": "Thomas Weber"
+  },
+  {
+    "datum": "2025-05-23",
+    "betrag": -3800.00,
+    "verwendungszweck": "LST SAL MAI 2025 BRUNNER SARAH",
+    "gegenpartei": "Sarah Brunner"
+  },
+  {
+    "datum": "2025-05-27",
+    "betrag": -2105.20,
+    "verwendungszweck": "AHV/IV/EO MAI 2025 AG-ANTEIL",
+    "gegenpartei": "Ausgleichskasse Zürich"
+  },
+  {
+    "datum": "2025-05-27",
+    "betrag": -710.00,
+    "verwendungszweck": "BVG Beiträge Mai 2025",
+    "gegenpartei": "Sammelstiftung BVG Helvetia"
+  },
+  {
+    "datum": "2025-05-07",
+    "betrag": -289.00,
+    "verwendungszweck": "Microsoft 365 Business Abo Mai 2025",
+    "gegenpartei": "Microsoft Ireland Operations Ltd"
+  },
+  {
+    "datum": "2025-05-07",
+    "betrag": -49.00,
+    "verwendungszweck": "Slack Technologies Mai 2025",
+    "gegenpartei": "Slack Technologies Inc"
+  },
+  {
+    "datum": "2025-05-07",
+    "betrag": -74.90,
+    "verwendungszweck": "Zoom Video Comm. Monatsabo Mai",
+    "gegenpartei": "Zoom Video Communications Inc"
+  },
+  {
+    "datum": "2025-05-09",
+    "betrag": 13900.00,
+    "verwendungszweck": "GUTSCHR RE 2025-028 Beratung April",
+    "gegenpartei": "Technik Lösungen Bärtschi GmbH"
+  },
+  {
+    "datum": "2025-05-13",
+    "betrag": 9100.00,
+    "verwendungszweck": "GUTSCHR Zahlung RE 25-029",
+    "gegenpartei": "Handels AG Fröhlich"
+  },
+  {
+    "datum": "2025-05-15",
+    "betrag": 7300.00,
+    "verwendungszweck": "GUTSCHR RE 2025-030 Baubegleitung",
+    "gegenpartei": "Bau AG Steiner"
+  },
+  {
+    "datum": "2025-05-16",
+    "betrag": -1580.00,
+    "verwendungszweck": "TREUHAND KANZLEI MONATSPAUSCHALE MAI",
+    "gegenpartei": "Treuhand Kanzlei Bosshart & Partner"
+  },
+  {
+    "datum": "2025-05-19",
+    "betrag": -560.00,
+    "verwendungszweck": "Rechnung 5688 Druckerpapier Verbrauchsmaterial",
+    "gegenpartei": "Bürocenter Huber AG"
+  },
+  {
+    "datum": "2025-05-20",
+    "betrag": 3230.00,
+    "verwendungszweck": "GUTSCHR SEPA Zahlung RE 25-031",
+    "gegenpartei": "Zürcher Dienstleistungs GmbH"
+  },
+  {
+    "datum": "2025-05-21",
+    "betrag": -8500.00,
+    "verwendungszweck": "ÜW DIVERSE LEISTUNGEN REF 8842",
+    "gegenpartei": "Consulting Partners AG"
+  },
+  {
+    "datum": "2025-05-22",
+    "betrag": -290.00,
+    "verwendungszweck": "Mobiltelefon Abo Geschäftsanschlüsse Mai",
+    "gegenpartei": "Swisscom AG"
+  },
+  {
+    "datum": "2025-05-26",
+    "betrag": -940.00,
+    "verwendungszweck": "Steuerrechnung direkte Bundessteuer 2024 Rate 2",
+    "gegenpartei": "Kantonales Steueramt Zürich"
+  },
+  {
+    "datum": "2025-05-27",
+    "betrag": 4200.00,
+    "verwendungszweck": "GUTSCHR EINGANG UNBEKANNT REF 229910",
+    "gegenpartei": "Unbekannte Gegenpartei"
+  },
+  {
+    "datum": "2025-05-28",
+    "betrag": -12000.00,
+    "verwendungszweck": "ÜW 9901 ALPHA BETA HOLDING SA",
+    "gegenpartei": "Alpha Beta Holding SA"
+  },
+  {
+    "datum": "2025-05-29",
+    "betrag": -480.00,
+    "verwendungszweck": "NEBK STROM Q2 2025 EWZ REF 10231",
+    "gegenpartei": "EWZ Elektrizitätswerk Zürich"
+  },
+  {
+    "datum": "2025-05-30",
+    "betrag": 20000.00,
+    "verwendungszweck": "UMBUCHUNG Festgeldkonto nach Geschäftskonto",
+    "gegenpartei": "Eigenes Festgeldkonto 9920"
+  },
+  {
+    "datum": "2025-01-16",
+    "betrag": -78.00,
+    "verwendungszweck": "Abonnement Xing Premium Jahresbeitrag Rate",
+    "gegenpartei": "New Work SE"
+  },
+  {
+    "datum": "2025-01-17",
+    "betrag": 2100.00,
+    "verwendungszweck": "GUTSCHR SEPA ERSTATTUNG ÜBERZAHLUNG",
+    "gegenpartei": "Netzwerk Profis GmbH"
+  },
+  {
+    "datum": "2025-01-19",
+    "betrag": -3400.00,
+    "verwendungszweck": "GS ZAHLUNG RECHNUNG 20250119 MASCH",
+    "gegenpartei": "Maschinen Import Wehrli AG"
+  },
+  {
+    "datum": "2025-02-03",
+    "betrag": -1100.00,
+    "verwendungszweck": "LST SPESEN REISE MESSE ZÜRICH JAN",
+    "gegenpartei": "Anna Schneider"
+  },
+  {
+    "datum": "2025-02-28",
+    "betrag": -175.00,
+    "verwendungszweck": "Postfinance Kontoführungsgebühr Q1 2025",
+    "gegenpartei": "PostFinance AG"
+  },
+  {
+    "datum": "2025-03-05",
+    "betrag": -3400.00,
+    "verwendungszweck": "ZAHLUNG RECHNUNG MASCH IMPORT FEB",
+    "gegenpartei": "Maschinen Import Wehrli AG"
+  },
+  {
+    "datum": "2025-03-13",
+    "betrag": 11500.00,
+    "verwendungszweck": "GUTSCHR NEUKUNDE ERSTAUFTRAG RE 25-012",
+    "gegenpartei": "Industriebedarf Müri GmbH"
+  },
+  {
+    "datum": "2025-04-03",
+    "betrag": -3400.00,
+    "verwendungszweck": "REF 5512-C WEHRLI LIEFERUNG APRIL",
+    "gegenpartei": "Maschinen Import Wehrli AG"
+  },
+  {
+    "datum": "2025-04-08",
+    "betrag": 10800.00,
+    "verwendungszweck": "GUTSCHR RE 2025-019 Projekt Beratung",
+    "gegenpartei": "Industriebedarf Müri GmbH"
+  },
+  {
+    "datum": "2025-04-18",
+    "betrag": -175.00,
+    "verwendungszweck": "Kontoführungsgebühr Q1 2025 Kreditkonto",
+    "gegenpartei": "PostFinance AG"
+  },
+  {
+    "datum": "2025-05-08",
+    "betrag": 10200.00,
+    "verwendungszweck": "GUTSCHR RE 2025-026 Lieferung Mai",
+    "gegenpartei": "Industriebedarf Müri GmbH"
+  },
+  {
+    "datum": "2025-05-12",
+    "betrag": -3400.00,
+    "verwendungszweck": "WEHRLI IMPORT MAI ÜW REF 5598",
+    "gegenpartei": "Maschinen Import Wehrli AG"
+  },
+  {
+    "datum": "2025-01-30",
+    "betrag": -6450.00,
+    "verwendungszweck": "SEPA ÜBERW SOFTWARELIZENZ JAHRESABO",
+    "gegenpartei": "SAP Österreich GmbH"
+  },
+  {
+    "datum": "2025-03-29",
+    "betrag": -1250.00,
+    "verwendungszweck": "Versicherungsprämie Betriebshaftpflicht Q2",
+    "gegenpartei": "Zürich Versicherungs AG"
+  },
+  {
+    "datum": "2025-02-19",
+    "betrag": -78.00,
+    "verwendungszweck": "Abonnement LinkedIn Premium Feb 2025",
+    "gegenpartei": "LinkedIn Ireland Unlimited Company"
+  }
+]
