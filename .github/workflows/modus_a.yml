@@ -1,25 +1,28 @@
-name: Modus A – Pipeline
+name: Sweepy Pipeline
 
 on:
-  workflow_dispatch:        # ← Manuell per Klick startbar
+  push:
+    branches: [main]
+  workflow_dispatch:      # manuell auslösbar
 
 jobs:
-  modus-a:
+  run-pipeline:
     runs-on: ubuntu-latest
 
     steps:
-      - name: "1. Code holen"
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: "2. Python installieren"
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: "3. Abhängigkeiten installieren"
-        run: pip install anthropic python-dateutil
+      - name: Dependencies installieren
+        run: pip install anthropic firebase-admin python-dateutil
 
-      - name: "4. Pipeline ausführen"
+      - name: Service Account JSON schreiben
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > bank-417a7-firebase-adminsdk-fbsvc-60ba2be615.json
+
+      - name: Pipeline ausführen
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python pipeline.py
