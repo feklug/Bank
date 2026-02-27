@@ -1,16 +1,15 @@
-name: Modus A – Kategorisierung
+name: Modus A – Pipeline
 
 on:
   workflow_dispatch:        # ← Manuell per Klick startbar
 
 jobs:
-  kategorisieren:
-    runs-on: ubuntu-latest  # ← temporärer Linux-Server
+  modus-a:
+    runs-on: ubuntu-latest
 
     steps:
       - name: "1. Code holen"
         uses: actions/checkout@v4
-        # Lädt alle Dateien aus deinem Repo auf den Server
 
       - name: "2. Python installieren"
         uses: actions/setup-python@v5
@@ -18,11 +17,9 @@ jobs:
           python-version: '3.11'
 
       - name: "3. Abhängigkeiten installieren"
-        run: pip install anthropic
+        run: pip install anthropic python-dateutil
 
-      - name: "4. categorize.py ausführen"
+      - name: "4. Pipeline ausführen"
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # ↑ GitHub injiziert deinen Secret als Umgebungsvariable
-          # ↑ In den Logs erscheint nur "***" – nie der echte Key
-        run: python categorize.py
+        run: python pipeline.py
