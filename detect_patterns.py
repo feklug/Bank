@@ -1,6 +1,3 @@
-
-python
-
 """
 detect_patterns.py
 ==================
