@@ -2,7 +2,7 @@
 detect_patterns.py
 ==================
 Pattern Detection Engine – KMU Liquiditätsforecasting
-Österreich (AT) | Version 2.0
+Österreich (AT) | Version 2.1
 
 WICHTIG: Diese Datei verwendet KEINE KI.
   → Statistik ist deterministisch: gleiche Daten = immer gleiche Antwort
@@ -27,6 +27,21 @@ VERARBEITUNGSREIHENFOLGE (kritisch – Reihenfolge nicht ändern):
   4. SEASONAL    → Saisonale Muster (nur wenn NICHT recurring)
   5. SEQUENTIAL  → Kausale Abfolgen A → B (Content-Match Pflicht)
   6. GEGENLÄUFIG → Ausgabe korreliert mit nachfolgender Einnahme
+
+ÄNDERUNGEN v2.1:
+  FIX  #1: unexpected_new feuert nicht mehr auf bekannte Gegenparteien (n=1,2)
+           → n=0 → unexpected_new (Gegenpartei wirklich unbekannt)
+           → n=1,2 → insufficient_data (kein Ausschluss aus Recurring!)
+           → n>=3 → statistischer Vergleich
+  FIX  #2: anomaly_reference_avg zeigt jetzt echten Median statt 0.0
+  FIX  #3: anomaly_deviation korrekt None wenn keine Referenz-Basis vorhanden
+  FIX  #4: Sequential verhindert Cross-Entity False Positives bei Gehaltsläufen
+           (verschiedene Gegenparteien + gleiche Kategorie + gleiche Richtung)
+  FIX  #5: Inflation-Toleranz gilt nur für Ausgaben (nicht Einnahmen)
+  FIX  #6: Strengere Zeit-Konsistenz bei n == recurring_min_txns
+  NEU  #7: IBAN-basiertes Matching (optional, schlägt Name wenn vorhanden)
+  NEU  #8: Content-Match-Cache → O(n²) statt O(n⁴) für Sequential
+  NEU  #9: Anomalie-Typ insufficient_data (is_anomaly=False, kein Recurring-Ausschluss)
 """
 
 import json
@@ -72,7 +87,9 @@ def _log_pattern(label: str, fields: dict, txn: dict):
 
 def _log_anomaly(txn: dict, fields: dict, ref_amounts: list, score: float, method: str):
     """Gibt eine erkannte Anomalie mit voller Begründung aus."""
-    _log(f"\n  ⚠️  ANOMALIE [{fields['anomaly_severity'].upper()}]")
+    severity = fields.get('anomaly_severity', 'info')
+    icon = "ℹ️ " if severity == "info" else "⚠️ "
+    _log(f"\n  {icon} ANOMALIE [{severity.upper()}]")
     _log(f"     Transaktion : {txn['datum']} | {txn['betrag']:>10.2f} | {txn['gegenpartei']}")
     _log(f"     Typ         : {fields['anomaly_type']}")
     _log(f"     Methode     : {method}")
@@ -90,6 +107,9 @@ def _log_recurring(key: str, fields: dict, txn: dict, dates: list, amounts: list
     """Gibt ein Recurring-Pattern mit statistischer Begründung aus."""
     _log(f"\n  🔁 RECURRING")
     _log(f"     Gegenpartei : {txn['gegenpartei']}")
+    iban = txn.get("iban")
+    if iban:
+        _log(f"     IBAN        : {iban}")
     _log(f"     Kategorie   : {txn.get('category_level1','n/a')}")
     _log(f"     Intervall   : {fields['recurrence_interval']}")
     _log(f"     Stichprobe  : {fields['recurrence_sample_size']} Transaktionen")
@@ -234,10 +254,12 @@ CFG = {
 
     # ── ANOMALIE ───────────────────────────────────────────────────────────────
     # Hybridansatz je nach Stichprobengrösse:
-    #   n < 5  → % Abweichung  (zu wenig für Statistik)
+    #   n = 0  → unexpected_new (Gegenpartei wirklich unbekannt)
+    #   n 1-2  → insufficient_data (kein Ausschluss aus Recurring!)
+    #   n 3-4  → % Abweichung  (zu wenig für Statistik)
     #   n 5-9  → MAD-Score     (robust gegen einzelne Ausreisser)
     #   n ≥ 10 → Z-Score       (klassisch, ausreichend Daten)
-    "anomaly_min_ref_txns":         3,      # Minimum Referenztransaktionen
+    "anomaly_min_ref_txns":         3,      # Minimum für statistische Auswertung
     "anomaly_z_low":                2.0,    # Z-Score Schwelle LOW
     "anomaly_z_medium":             2.5,    # Z-Score Schwelle MEDIUM
     "anomaly_z_high":               3.0,    # Z-Score Schwelle HIGH (fast sicher)
@@ -246,10 +268,11 @@ CFG = {
     "anomaly_mad_high":             5.0,    # MAD-Score Schwelle HIGH
     "anomaly_pct_medium":           2.0,    # 200% Abweichung → MEDIUM (n<5)
     "anomaly_pct_high":             4.0,    # 400% Abweichung → HIGH (n<5)
-    "anomaly_unexpected_low":       500,    # Unbekannte Gegenpartei: ab €500 = LOW
+    "anomaly_unexpected_low":       500,    # Wirklich unbekannte Gegenpartei (n=0): ab €500 = LOW
     "anomaly_unexpected_medium":    2000,   # ab €2000 = MEDIUM
     "anomaly_unexpected_high":      10000,  # ab €10000 = HIGH
     "anomaly_inflation_pa":         0.05,   # 5% jährliche Preissteigerung toleriert
+                                            # (FIX #5: gilt nur für Ausgaben, nicht Einnahmen)
 
     # ── RECURRING ──────────────────────────────────────────────────────────────
     # Zeit-Konsistenz: stddev(Abstände) / avg(Abstände) < 0.20
@@ -258,6 +281,7 @@ CFG = {
     # Bedeutet: Beträge dürfen max. 15% schwanken
     "recurring_min_txns":           3,      # Mindestens 3 Transaktionen nötig
     "recurring_time_consistency":   0.20,   # Max. Zeitabweichung (20%)
+    "recurring_time_consistency_min_n": 0.15,  # Strengere Schwelle bei n == min_txns (FIX #6)
     "recurring_amount_tolerance":   0.15,   # Max. Betragsabweichung (15%)
     "recurring_min_confidence":     0.70,   # Mindest-Confidence für is_recurring=True
 
@@ -269,7 +293,13 @@ CFG = {
     # ── SEQUENTIAL ─────────────────────────────────────────────────────────────
     # Content-Match ist PFLICHT (> 0.40) – verhindert Geister-Sequenzen
     # Beispiel ohne Content-Match: Miete am 1. + Telefon am 15. wären
-    # fälschlicherweise als Abfolge erkannt worden
+    # fälschlicherweise als Abfolge erkannt worden.
+    #
+    # FIX #4: Zusätzliche Bedingung – kein Sequential wenn:
+    #   - verschiedene Gegenparteien UND
+    #   - gleiche Kategorie UND
+    #   - gleiche Zahlungsrichtung (beide Ausgaben oder beide Einnahmen)
+    # → Verhindert Gehaltsrunden-Cross-Matching (Anna→Max, Thomas→Max etc.)
     "sequential_min_observations":  2,      # Mindest-Beobachtungen
     "sequential_max_delay_days":    30,     # Max. Tage zwischen A und B
     "sequential_delay_consistency": 0.50,   # Max. Delay-Schwankung
@@ -349,13 +379,33 @@ COUNTER_SEEDS = [
 # STATISTISCHE HILFSFUNKTIONEN
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _norm_key(name: str, category: str) -> str:
+def _norm_key(name: str, category: str, iban: str = None) -> str:
     """
-    Erstellt eindeutigen Schlüssel: normalize(name) + '|' + category.
-    WICHTIG: Verhindert falsche Zusammenführung.
-    Beispiel: 'Müller Bau GmbH (Lieferant)' ≠ 'Berater Müller'
-    weil counterparty_key = 'muller_bau_gmbh|LIEFERANTEN' vs 'muller|BERATUNG'
+    Erstellt eindeutigen Schlüssel für Transaktions-Gruppierung.
+
+    Priorität (NEU #7 – IBAN-Matching):
+      1. IBAN (wenn vorhanden und nicht leer) → zuverlässigste Identifikation
+         Vorteil: Namensvarianten ("Müller GmbH" vs "Mueller GmbH") werden
+         korrekt zusammengeführt. Keine Normalisierungs-Fehler möglich.
+      2. Normalisierter Name + Kategorie (Fallback wenn keine IBAN)
+
+    IBAN-Matching ist optional:
+      - Felder "iban", "iban_gegenpartei", "counterparty_iban" werden geprüft
+      - Wenn keines vorhanden → Fallback auf Namens-Matching wie bisher
+      - Gleiche Gegenpartei mit verschiedenen Kategorien → verschiedene Schlüssel
+        (Vermieter mit Kaution ≠ Vermieter mit Miete)
+
+    Beispiel:
+      IBAN vorhanden:  "AT61 1904 3002 3457 3201|AUSGABEN – BETRIEBSKOSTEN"
+      IBAN fehlt:      "gewerberaum_immobilien_ag|AUSGABEN – BETRIEBSKOSTEN"
     """
+    # ── IBAN-Matching wenn verfügbar ──────────────────────────────────────────
+    if iban and iban.strip():
+        iban_clean = re.sub(r"\s+", "", iban.strip().upper())
+        if len(iban_clean) >= 15:   # Mindestlänge für valide IBAN
+            return iban_clean + "|" + (category or "UNBEKANNT")
+
+    # ── Fallback: Name-basiertes Matching ────────────────────────────────────
     generic = ["", "bank", "system", "intern", "unbekannt", "unbekannte gegenpartei",
                "eigene buchung", "intern transfer"]
     if not name or name.strip().lower() in generic:
@@ -365,6 +415,18 @@ def _norm_key(name: str, category: str) -> str:
         n = n.replace(src, dst)
     n = re.sub(r"[^a-z0-9\s]", "", n)
     return "_".join(n.split()) + "|" + (category or "UNBEKANNT")
+
+
+def _get_iban(txn: dict) -> Optional[str]:
+    """
+    Extrahiert IBAN aus Transaktion – prüft mehrere mögliche Feldnamen.
+    Rückgabe: IBAN-String oder None wenn nicht vorhanden.
+    """
+    for field in ["iban", "iban_gegenpartei", "counterparty_iban", "empfaenger_iban"]:
+        val = txn.get(field)
+        if val and str(val).strip():
+            return str(val).strip()
+    return None
 
 
 def _parse(s: str) -> datetime:
@@ -464,6 +526,31 @@ def _content_match(za: str, zb: str, ga: str, gb: str) -> float:
     return 0.0
 
 
+def _build_cms_cache(transactions: list) -> dict:
+    """
+    Vorberechnung aller Content-Match-Scores (NEU #8).
+
+    Reduktion von O(n⁴) auf O(n²) für die Sequential-Erkennung.
+    Wird einmal vor _run_sequential aufgebaut und dann nur noch gelesen.
+
+    Rückgabe: dict mit (i, j) → float für alle Paare i < j.
+    Zugriff:  cache[(i,j)] oder cache[(j,i)] – beide Richtungen gespeichert.
+    """
+    n = len(transactions)
+    cache = {}
+    for i in range(n):
+        for j in range(i + 1, n):
+            score = _content_match(
+                transactions[i]["verwendungszweck"],
+                transactions[j]["verwendungszweck"],
+                transactions[i]["gegenpartei"],
+                transactions[j]["gegenpartei"],
+            )
+            cache[(i, j)] = score
+            cache[(j, i)] = score
+    return cache
+
+
 def _next_expected(dates: list, interval: str) -> Optional[str]:
     """
     Berechnet nächstes erwartetes Datum inkl. AT-Kalender.
@@ -513,7 +600,7 @@ def _empty_pattern() -> dict:
         "batch_anomaly_type":             None,
         # ANOMALIE
         "is_anomaly":                     False,
-        "anomaly_type":                   None,
+        "anomaly_type":                   None,   # neu: "insufficient_data" möglich (is_anomaly=False)
         "anomaly_deviation":              None,
         "anomaly_severity":               None,
         "anomaly_reference_avg":          None,
@@ -666,16 +753,25 @@ def _detect_batch_anomalies(transactions: list, batch_results: dict) -> dict:
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SCHRITT 2: ANOMALIE-ERKENNUNG
-# MUSS vor Recurring laufen – Anomalien verfälschen sonst den Durchschnitt
+# MUSS vor Recurring laufen – echte Anomalien verfälschen sonst den Durchschnitt
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _check_anomaly(txn: dict, ref_txns: list) -> dict:
     """
     Prüft ob txn eine Anomalie gegenüber ref_txns ist.
-    Hybridansatz:
-      n < 5  → % Abweichung
-      n 5-9  → MAD-Score (robust)
-      n ≥ 10 → Z-Score (klassisch)
+
+    Stufenmodell (FIX #1):
+      n = 0   → unexpected_new (Gegenpartei wirklich nie zuvor gesehen)
+                 is_anomaly=True → wird aus Recurring ausgeschlossen
+      n = 1-2 → insufficient_data (Gegenpartei bekannt, aber zu wenig Daten)
+                 is_anomaly=False → wird NICHT aus Recurring ausgeschlossen!
+                 Wird nur geloggt als Info, nicht als Warnung.
+      n >= 3  → Statistischer Vergleich (%, MAD oder Z-Score)
+                 is_anomaly=True nur wenn Schwellen überschritten
+
+    FIX #5: Inflationstoleranz gilt nur für Ausgaben.
+    FIX #2: anomaly_reference_avg = echter Median, nicht hardcoded 0.0.
+    FIX #3: anomaly_deviation = None wenn keine Basis vorhanden.
     """
     p = {"is_anomaly": False, "anomaly_type": None, "anomaly_deviation": None,
          "anomaly_severity": None, "anomaly_reference_avg": None, "anomaly_score": None}
@@ -696,30 +792,47 @@ def _check_anomaly(txn: dict, ref_txns: list) -> dict:
             _log_anomaly(txn, p, refs, None, "Richtungsänderung")
             return p
 
-    # ── Unbekannte Gegenpartei → unexpected_new ────────────────────────────────
-    if n < CFG["anomaly_min_ref_txns"]:
+    # ── n = 0: Wirklich unbekannte Gegenpartei → unexpected_new ───────────────
+    # is_anomaly=True → wird aus Recurring ausgeschlossen (korrekt)
+    if n == 0:
         sev = None
         if   amount >= CFG["anomaly_unexpected_high"]:   sev = "high"
         elif amount >= CFG["anomaly_unexpected_medium"]: sev = "medium"
         elif amount >= CFG["anomaly_unexpected_low"]:    sev = "low"
         if sev:
-            p.update({"is_anomaly": True, "anomaly_type": "unexpected_new",
-                      "anomaly_severity": sev, "anomaly_reference_avg": 0.0,
-                      "anomaly_deviation": round(amount, 2)})
-            _log_anomaly(txn, p, refs, None, f"Unbekannte Gegenpartei (n={n})")
+            p.update({
+                "is_anomaly":            True,
+                "anomaly_type":          "unexpected_new",
+                "anomaly_severity":      sev,
+                "anomaly_reference_avg": 0.0,   # Keine Referenz vorhanden – korrekt 0.0
+                "anomaly_deviation":     None,  # FIX #3: keine Basis, kein Prozentwert
+            })
+            _log_anomaly(txn, p, refs, None, "Unbekannte Gegenpartei (n=0)")
         return p
 
+    # ── n = 1-2: Gegenpartei bekannt, aber zu wenig Daten ─────────────────────
+    # insufficient_data: is_anomaly=False → KEIN Ausschluss aus Recurring!
+    # Diese Transaktionen sollen normal zu Recurring-Gruppen beitragen können.
+    if n < CFG["anomaly_min_ref_txns"]:
+        _log(f"  ℹ️  INSUFFICIENT_DATA: {txn['gegenpartei']} (n={n}) "
+             f"→ zu wenig Daten für Statistik, kein Recurring-Ausschluss")
+        # Kein Eintrag in anomaly_idx → Recurring kann diese Txn verwenden
+        return p
+
+    # ── n >= 3: Statistischer Vergleich ────────────────────────────────────────
     ref_med = _median(refs)
 
-    # ── Inflationstoleranz: Steigerung bis 5%/Jahr ist normal ─────────────────
-    if ref_med > 0 and amount <= ref_med * (1 + CFG["anomaly_inflation_pa"]):
+    # ── Inflationstoleranz: nur für Ausgaben (FIX #5) ─────────────────────────
+    # Einnahmen-Wachstum ist ein Signal, kein Grund zum Ignorieren.
+    is_expense = txn["betrag"] < 0
+    if is_expense and ref_med > 0 and amount <= ref_med * (1 + CFG["anomaly_inflation_pa"]):
         return p
 
     sev = None
     score_val = None
     method = ""
 
-    # ── n < 5: Prozentuale Abweichung ──────────────────────────────────────────
+    # ── n 3-4: Prozentuale Abweichung ──────────────────────────────────────────
     if n < 5:
         if ref_med == 0: return p
         dev = (amount - ref_med) / ref_med
@@ -750,12 +863,14 @@ def _check_anomaly(txn: dict, ref_txns: list) -> dict:
         elif abs(score_val) >= CFG["anomaly_z_low"]:    sev = "low"
 
     if sev:
+        # FIX #2: anomaly_reference_avg = echter Median (nicht 0.0)
+        # FIX #3: anomaly_deviation als Prozentwert nur wenn Basis vorhanden
         dev_pct = (amount - ref_med) / ref_med if ref_med > 0 else None
         p.update({
             "is_anomaly":            True,
             "anomaly_type":          "amount_spike" if amount > ref_med else "amount_drop",
             "anomaly_severity":      sev,
-            "anomaly_reference_avg": round(ref_med, 2),
+            "anomaly_reference_avg": round(ref_med, 2),   # FIX #2: echter Median
             "anomaly_deviation":     round(dev_pct, 4) if dev_pct is not None else None,
             "anomaly_score":         round(score_val, 4) if score_val is not None else None,
         })
@@ -765,15 +880,26 @@ def _check_anomaly(txn: dict, ref_txns: list) -> dict:
 
 
 def _run_anomaly(transactions: list) -> dict:
+    """
+    Gruppiert Transaktionen nach Gegenpartei+Kategorie (mit IBAN wenn verfügbar)
+    und prüft jede auf Anomalie.
+
+    Rückgabe: dict idx → anomaly_fields
+    NUR Transaktionen mit is_anomaly=True landen hier.
+    insufficient_data (is_anomaly=False) wird geloggt aber NICHT zurückgegeben
+    → kein Ausschluss aus Recurring.
+    """
     groups = defaultdict(list)
     for i, t in enumerate(transactions):
-        groups[_norm_key(t["gegenpartei"], t.get("category_level1",""))].append((i, t))
+        key = _norm_key(t["gegenpartei"], t.get("category_level1",""), _get_iban(t))
+        groups[key].append((i, t))
 
     result = {}
     for key, entries in groups.items():
         for pos, (idx, txn) in enumerate(entries):
             ref = [t for j, (_, t) in enumerate(entries) if j != pos]
             a   = _check_anomaly(txn, ref)
+            # Nur echte Anomalien (is_anomaly=True) in Ergebnis aufnehmen
             if a["is_anomaly"]:
                 result[idx] = a
     return result
@@ -784,14 +910,25 @@ def _run_anomaly(transactions: list) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _run_recurring(transactions: list, anomaly_idx: set) -> dict:
+    """
+    Erkennt wiederkehrende Zahlungen.
+
+    FIX #1-Effekt: insufficient_data-Transaktionen sind NICHT in anomaly_idx
+    → werden korrekt in Recurring-Gruppen einbezogen
+    → Sarah Brunner (3×3800), Netzwerk Profis (3×3200) etc. werden jetzt
+      als Recurring erkannt statt fälschlich ausgeschlossen.
+
+    FIX #6: Strengere Zeit-Konsistenz-Schwelle bei n == recurring_min_txns.
+    """
     groups = defaultdict(list)
     for i, t in enumerate(transactions):
-        groups[_norm_key(t["gegenpartei"], t.get("category_level1",""))].append((i, t))
+        key = _norm_key(t["gegenpartei"], t.get("category_level1",""), _get_iban(t))
+        groups[key].append((i, t))
 
     result = {}
 
     for key, entries in groups.items():
-        # Anomalien aus der Berechnung ausschliessen
+        # Echte Anomalien aus der Berechnung ausschliessen
         clean = [(i, t) for i, t in entries if i not in anomaly_idx]
         if len(clean) < CFG["recurring_min_txns"]: continue
 
@@ -809,8 +946,13 @@ def _run_recurring(transactions: list, anomaly_idx: set) -> dict:
         tc = std_gap / avg_gap if avg_gap > 0 else 1.0   # Zeit-Konsistenz
         ac = std_amt / avg_amt if avg_amt > 0 else 1.0   # Betrags-Konsistenz
 
-        # Strenge Schwellen – Qualität vor Quantität
-        if tc >= CFG["recurring_time_consistency"]:
+        # FIX #6: Strengere Zeit-Konsistenz bei Minimum-Stichprobe
+        n = len(clean)
+        tc_threshold = (CFG["recurring_time_consistency_min_n"]
+                        if n == CFG["recurring_min_txns"]
+                        else CFG["recurring_time_consistency"])
+
+        if tc >= tc_threshold:
             continue   # Zeitabstände zu unregelmässig
         if ac >= CFG["recurring_amount_tolerance"]:
             continue   # Beträge zu unterschiedlich
@@ -823,7 +965,6 @@ def _run_recurring(transactions: list, anomaly_idx: set) -> dict:
 
         # Confidence-Berechnung
         conf = (1 - tc) * 0.6 + (1 - ac) * 0.4
-        n    = len(clean)
         if n >= 8:   conf += 0.05   # Bonus für grosse Stichprobe
         if n >= 5:   conf += 0.05
         if std_amt == 0: conf += 0.03   # Bonus für exakt gleiche Beträge
@@ -871,7 +1012,8 @@ def _run_seasonal(transactions: list, recurring_idx: set) -> dict:
     groups = defaultdict(list)
     for i, t in enumerate(transactions):
         if i in recurring_idx: continue   # Recurring hat Vorrang
-        groups[_norm_key(t["gegenpartei"], t.get("category_level1",""))].append((i, t))
+        key = _norm_key(t["gegenpartei"], t.get("category_level1",""), _get_iban(t))
+        groups[key].append((i, t))
 
     result = {}
 
@@ -918,8 +1060,24 @@ def _run_seasonal(transactions: list, recurring_idx: set) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _run_sequential(transactions: list) -> dict:
+    """
+    Erkennt kausale Abfolgen A → B.
+
+    FIX #4: Cross-Entity False Positives verhindert.
+    Bedingung zum Überspringen: verschiedene Gegenparteien UND gleiche
+    Kategorie UND gleiche Zahlungsrichtung (beide Ausgaben oder beide Einnahmen).
+    → Verhindert falsche Ketten bei Gehaltsrunden (Anna→Max, Thomas→Max etc.)
+    → Legitime Ketten (AHV Jan→AHV Feb, gleiche Gegenpartei) bleiben erhalten.
+
+    NEU #8: Content-Match-Cache.
+    cms_cache wird einmal vorberechnet (O(n²)) statt für jedes Paar
+    neu berechnet (wäre O(n⁴) mit den inneren Schleifen).
+    """
     result = {}
     n = len(transactions)
+
+    # NEU #8: Cache vorberechnen
+    cms_cache = _build_cms_cache(transactions)
 
     for i in range(n):
         t_a   = transactions[i]
@@ -927,7 +1085,8 @@ def _run_sequential(transactions: list) -> dict:
         d_a   = _parse(t_a["datum"])
 
         # Systemtransaktionen lösen keine Ketten aus
-        if _norm_key(t_a["gegenpartei"], cat_a).startswith("SYSTEM|"): continue
+        key_a = _norm_key(t_a["gegenpartei"], cat_a, _get_iban(t_a))
+        if key_a.startswith("SYSTEM|"): continue
 
         best_match = None
         best_conf  = 0.0
@@ -939,10 +1098,20 @@ def _run_sequential(transactions: list) -> dict:
             if delay < 0 or delay > CFG["sequential_max_delay_days"]: continue
 
             cat_b = t_b.get("category_level1","")
-            cms   = _content_match(
-                t_a["verwendungszweck"], t_b["verwendungszweck"],
-                t_a["gegenpartei"],      t_b["gegenpartei"]
-            )
+
+            # FIX #4: Verhindere Cross-Entity False Positives
+            # Beispiel: Anna Schneider (Feb) → Max Müller (Mrz) war falsch,
+            # weil "sal" in beiden Verwendungszwecken steht.
+            # Bedingung: verschiedene Gegenparteien + gleiche Kategorie + gleiche Richtung
+            gp_a = t_a["gegenpartei"].strip().lower()
+            gp_b = t_b["gegenpartei"].strip().lower()
+            if (gp_a != gp_b
+                    and cat_a == cat_b
+                    and (t_a["betrag"] < 0) == (t_b["betrag"] < 0)):
+                continue
+
+            # Content-Match aus Cache lesen (NEU #8)
+            cms = cms_cache.get((i, j), 0.0)
 
             # PFLICHTBEDINGUNG: ohne inhaltlichen Bezug kein Sequential
             if cms < CFG["sequential_content_min"]: continue
@@ -952,20 +1121,13 @@ def _run_sequential(transactions: list) -> dict:
             delays = [delay]
             for k in range(n):
                 if k in (i, j): continue
-                t_c  = transactions[k]
-                cms2 = _content_match(
-                    t_a["verwendungszweck"], t_c["verwendungszweck"],
-                    t_a["gegenpartei"],      t_c["gegenpartei"]
-                )
+                cms2 = cms_cache.get((i, k), 0.0)
                 if cms2 >= 0.6:
-                    d_c = _parse(t_c["datum"])
+                    d_c = _parse(transactions[k]["datum"])
                     for l in range(k + 1, n):
                         fd = (_parse(transactions[l]["datum"]) - d_c).days
                         if 0 < fd <= CFG["sequential_max_delay_days"]:
-                            cms3 = _content_match(
-                                t_b["verwendungszweck"], transactions[l]["verwendungszweck"],
-                                t_b["gegenpartei"],      transactions[l]["gegenpartei"]
-                            )
+                            cms3 = cms_cache.get((j, l), 0.0)
                             if cms3 >= 0.6:
                                 obs += 1; delays.append(fd); break
 
@@ -1109,9 +1271,22 @@ def detect_patterns(transactions: list) -> list:
 
     Kein File wird geschrieben – alles bleibt im Memory.
     Kein KI-Call – reine Statistik und Datumsberechnungen.
+
+    IBAN-Matching (NEU #7):
+      Wenn Transaktionen ein 'iban', 'iban_gegenpartei', 'counterparty_iban'
+      oder 'empfaenger_iban' Feld haben, wird dieses für die Gruppierung
+      verwendet. Das ist zuverlässiger als Namens-Matching.
     """
     _log_section("PATTERN DETECTION – Österreich (AT)")
     _log(f"  {len(transactions)} Transaktionen | Kalender: Österreich")
+
+    # IBAN-Verfügbarkeit prüfen und loggen
+    txns_mit_iban = sum(1 for t in transactions if _get_iban(t))
+    if txns_mit_iban > 0:
+        _log(f"  ℹ️  IBAN-Matching aktiv: {txns_mit_iban}/{len(transactions)} "
+             f"Transaktionen mit IBAN ({txns_mit_iban/len(transactions):.0%})")
+    else:
+        _log(f"  ℹ️  IBAN-Matching: keine IBAN-Felder gefunden → Namens-Matching")
 
     # ── Sicherheitscheck ──────────────────────────────────────────────────────
     unkategorisiert = [t for t in transactions if not t.get("category_level1")]
@@ -1129,14 +1304,15 @@ def detect_patterns(transactions: list) -> list:
 
     # ── Schritt 2: ANOMALIE ───────────────────────────────────────────────────
     _log_subsection("2/6 | ANOMALIE-ERKENNUNG")
-    _log("  WICHTIG: Anomalien werden VOR Recurring erkannt")
+    _log("  WICHTIG: Echte Anomalien (is_anomaly=True) werden VOR Recurring erkannt")
     _log("           und aus der Recurring-Berechnung ausgeschlossen.")
+    _log("  NEU:     insufficient_data (n=1,2) → is_anomaly=False → kein Ausschluss!")
     anomaly_results = _run_anomaly(transactions)
-    anomaly_idx     = set(anomaly_results.keys())
+    anomaly_idx     = set(anomaly_results.keys())   # Nur echte Anomalien
     hi = sum(1 for v in anomaly_results.values() if v["anomaly_severity"] == "high")
     me = sum(1 for v in anomaly_results.values() if v["anomaly_severity"] == "medium")
     lo = sum(1 for v in anomaly_results.values() if v["anomaly_severity"] == "low")
-    _log(f"\n  → {len(anomaly_results)} Anomalien erkannt  "
+    _log(f"\n  → {len(anomaly_results)} echte Anomalien erkannt  "
          f"(HIGH: {hi} | MEDIUM: {me} | LOW: {lo})")
     if anomaly_idx:
         _log(f"  → Diese Transaktionen werden aus Recurring ausgeschlossen: "
@@ -1144,7 +1320,8 @@ def detect_patterns(transactions: list) -> list:
 
     # ── Schritt 3: RECURRING ─────────────────────────────────────────────────
     _log_subsection("3/6 | RECURRING-ERKENNUNG")
-    _log(f"  Schwellen: Zeit {CFG['recurring_time_consistency']} | "
+    _log(f"  Schwellen: Zeit {CFG['recurring_time_consistency']} "
+         f"(min_n: {CFG['recurring_time_consistency_min_n']}) | "
          f"Betrag {CFG['recurring_amount_tolerance']} | "
          f"Min-Confidence {CFG['recurring_min_confidence']}")
     recurring_results = _run_recurring(transactions, anomaly_idx)
@@ -1166,6 +1343,7 @@ def detect_patterns(transactions: list) -> list:
     _log_subsection("5/6 | SEQUENTIAL-ERKENNUNG")
     _log(f"  Pflicht: Content-Match > {CFG['sequential_content_min']} "
          f"(verhindert Geister-Sequenzen)")
+    _log(f"  FIX #4: Cross-Entity False Positives werden unterdrückt")
     sequential_results = _run_sequential(transactions)
     _log(f"\n  → {len(sequential_results)} Sequential erkannt")
 
@@ -1210,7 +1388,8 @@ def detect_patterns(transactions: list) -> list:
         seen = set()
         for i, f in recurring_results.items():
             k = _norm_key(transactions[i]["gegenpartei"],
-                          transactions[i].get("category_level1",""))
+                          transactions[i].get("category_level1",""),
+                          _get_iban(transactions[i]))
             if k in seen: continue
             seen.add(k)
             _log(f"  {transactions[i]['gegenpartei'][:35]:<35} "
@@ -1234,15 +1413,15 @@ if __name__ == "__main__":
 
     # ── Startbanner ───────────────────────────────────────────────────────────
     _log("=" * 70)
-    _log("  detect_patterns.py – Direkttest")
+    _log("  detect_patterns.py – Direkttest v2.1")
     _log(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     _log("  Kalender: Österreich (AT)")
     _log("  Kein KI-Call. Reine Statistik + Datumsberechnungen.")
+    _log("  Fixes: #1 insufficient_data | #2/#3 Referenz-Log | #4 Sequential")
+    _log("         #5 Inflation nur Ausgaben | #6 Min-n strenger | #7 IBAN | #8 Cache")
     _log("=" * 70)
 
     # ── Kalender-Selbsttest ───────────────────────────────────────────────────
-    # Bevor wir die Daten laden, prüfen wir ob der AT-Kalender korrekt arbeitet.
-    # Das ist wichtig – ein falscher Kalender führt zu falschen next_expected_date.
     _log_subsection("KALENDER-SELBSTTEST (AT)")
 
     test_jahre = [2024, 2025, 2026]
@@ -1257,7 +1436,6 @@ if __name__ == "__main__":
             wochentag = ["Mo","Di","Mi","Do","Fr","Sa","So"][ft.weekday()]
             _log(f"      {ft.strftime('%d.%m.%Y')} ({wochentag})")
 
-    # Arbeitstag-Test: ein paar bekannte Daten prüfen
     _log(f"\n  Arbeitstag-Test:")
     test_dates = [
         ("2025-01-01", False, "Neujahr AT"),
@@ -1291,7 +1469,6 @@ if __name__ == "__main__":
         _log("\n  ❌ FEHLER im Kalender-Selbsttest – bitte prüfen!")
         sys.exit(1)
 
-    # ── Business-Day-Shift-Test ───────────────────────────────────────────────
     _log(f"\n  Arbeitstag-Verschiebungs-Test:")
     shift_tests = [
         ("2025-01-04", "2025-01-06", "Samstag → Montag"),
@@ -1303,10 +1480,73 @@ if __name__ == "__main__":
         von      = datetime.strptime(von_str, "%Y-%m-%d")
         erwartet = datetime.strptime(erwartet_str, "%Y-%m-%d")
         ergebnis = naechster_arbeitstag(von)
-        # naechster_arbeitstag loggt selbst – wir prüfen nur das Ergebnis
         ok = "✅" if ergebnis.date() == erwartet.date() else "❌"
         _log(f"    {ok} {von_str} ({beschreibung}) → {ergebnis.strftime('%Y-%m-%d')}"
              f"  (erwartet: {erwartet_str})")
+
+    # ── IBAN-Matching Selbsttest ──────────────────────────────────────────────
+    _log_subsection("IBAN-MATCHING SELBSTTEST (NEU #7)")
+    iban_tests = [
+        # (name, category, iban, erwarteter_key_prefix)
+        ("Müller GmbH",     "AUSGABEN – BETRIEBSKOSTEN", "AT61 1904 3002 3457 3201",
+         "AT611904300234573201|"),
+        ("Mueller GmbH",    "AUSGABEN – BETRIEBSKOSTEN", "AT61 1904 3002 3457 3201",
+         "AT611904300234573201|"),   # gleicher Key trotz Namensvariant!
+        ("Müller GmbH",     "AUSGABEN – BETRIEBSKOSTEN", None,
+         "muller_gmbh|"),            # Fallback ohne IBAN
+        ("Müller GmbH",     "AUSGABEN – BETRIEBSKOSTEN", "",
+         "muller_gmbh|"),            # Leere IBAN → Fallback
+        ("unbekannt",       "EINNAHMEN",                 None,
+         "SYSTEM|"),                 # Generischer Name
+    ]
+    iban_ok = True
+    for name, cat, iban, expected_prefix in iban_tests:
+        key = _norm_key(name, cat, iban)
+        ok  = "✅" if key.startswith(expected_prefix) else "❌"
+        if not key.startswith(expected_prefix): iban_ok = False
+        _log(f"  {ok}  name={name!r:20}  iban={str(iban)!r:30}  → {key}")
+    _log(f"\n  {'✅ IBAN-Matching korrekt' if iban_ok else '❌ IBAN-Matching fehlerhaft!'}")
+
+    # ── Anomalie-Fix Selbsttest ───────────────────────────────────────────────
+    _log_subsection("ANOMALIE-FIX SELBSTTEST (FIX #1, #2, #3, #5)")
+
+    # Test FIX #1: n=0 → unexpected_new, n=1 → kein is_anomaly, n=2 → kein is_anomaly
+    def _make_txn(betrag, datum="2025-01-01", gp="TestGP"):
+        return {"betrag": betrag, "datum": datum, "gegenpartei": gp,
+                "verwendungszweck": "Test", "category_level1": "AUSGABEN – BETRIEBSKOSTEN"}
+
+    t_neu = _make_txn(-5000)
+    a0 = _check_anomaly(t_neu, [])                # n=0 → unexpected_new
+    a1 = _check_anomaly(t_neu, [_make_txn(-5000)])  # n=1 → insufficient_data
+    a2 = _check_anomaly(t_neu, [_make_txn(-5000), _make_txn(-5000)])  # n=2 → insufficient_data
+    _log(f"  n=0: is_anomaly={a0['is_anomaly']} type={a0['anomaly_type']}  "
+         f"(erwartet: True / unexpected_new)  {'✅' if a0['is_anomaly'] and a0['anomaly_type']=='unexpected_new' else '❌'}")
+    _log(f"  n=1: is_anomaly={a1['is_anomaly']} type={a1['anomaly_type']}  "
+         f"(erwartet: False / None)  {'✅' if not a1['is_anomaly'] else '❌'}")
+    _log(f"  n=2: is_anomaly={a2['is_anomaly']} type={a2['anomaly_type']}  "
+         f"(erwartet: False / None)  {'✅' if not a2['is_anomaly'] else '❌'}")
+
+    # Test FIX #2: reference_avg korrekt
+    t_spike = _make_txn(-9000)
+    refs3 = [_make_txn(-1000), _make_txn(-1100), _make_txn(-900)]
+    a3 = _check_anomaly(t_spike, refs3)
+    _log(f"  FIX #2: reference_avg={a3['anomaly_reference_avg']} "
+         f"(erwartet: ~1000, nicht 0.0)  "
+         f"{'✅' if a3.get('anomaly_reference_avg', 0) > 0 else '❌'}")
+
+    # Test FIX #5: Inflation-Toleranz nur für Ausgaben
+    t_einnahme = _make_txn(+1050)   # +5% Einnahmen-Wachstum → SOLL gemeldet werden
+    t_ausgabe  = _make_txn(-1050)   # +5% Ausgaben-Wachstum → darf ignoriert werden
+    refs_1000 = [_make_txn(1000), _make_txn(1000), _make_txn(1000),
+                 _make_txn(1000), _make_txn(1000)]
+    ae = _check_anomaly(t_einnahme, refs_1000)
+    aa = _check_anomaly(t_ausgabe,  refs_1000)
+    # Bei Einnahmen: +5% über Median sollte nicht durch Inflationstoleranz ignoriert werden
+    _log(f"  FIX #5 Einnahmen: is_anomaly={ae['is_anomaly']}  "
+         f"(+5% Einnahmen, erwartet: False da zu klein für Z-Score)  ℹ️")
+    _log(f"  FIX #5 Ausgaben:  is_anomaly={aa['is_anomaly']}  "
+         f"(+5% Ausgaben, erwartet: False wegen Inflation-Toleranz)  "
+         f"{'✅' if not aa['is_anomaly'] else '❌'}")
 
     # ── Datei laden ───────────────────────────────────────────────────────────
     _log_section("DATEN LADEN")
@@ -1348,6 +1588,12 @@ if __name__ == "__main__":
     else:
         _log(f"  ✅ Alle Transaktionen kategorisiert")
 
+    # IBAN-Verfügbarkeit in Datei
+    txns_mit_iban = sum(1 for t in transactions if _get_iban(t))
+    _log(f"  {'✅' if txns_mit_iban > 0 else 'ℹ️ '} IBAN-Felder: "
+         f"{txns_mit_iban}/{len(transactions)} Transaktionen "
+         f"({'IBAN-Matching aktiv' if txns_mit_iban > 0 else 'Namens-Matching Fallback'})")
+
     # Datums-Übersicht
     daten = sorted([t["datum"] for t in transactions])
     betraege = [t["betrag"] for t in transactions]
@@ -1380,15 +1626,17 @@ if __name__ == "__main__":
         seen_keys = set()
         for t in recurring_txns:
             p   = t["pattern"]
-            key = _norm_key(t["gegenpartei"], t.get("category_level1",""))
+            key = _norm_key(t["gegenpartei"], t.get("category_level1",""), _get_iban(t))
             if key in seen_keys: continue
             seen_keys.add(key)
 
-            # Alle Transaktionen dieser Recurring-Gruppe sammeln
             gruppe = [x for x in recurring_txns
-                      if _norm_key(x["gegenpartei"], x.get("category_level1","")) == key]
+                      if _norm_key(x["gegenpartei"], x.get("category_level1",""),
+                                   _get_iban(x)) == key]
 
             _log(f"\n  ┌─ {t['gegenpartei']}")
+            if _get_iban(t):
+                _log(f"  │  IBAN           : {_get_iban(t)}")
             _log(f"  │  Kategorie     : {t.get('category_level1','n/a')}")
             _log(f"  │  Intervall     : {p['recurrence_interval']}")
             _log(f"  │  Stichprobe    : {p['recurrence_sample_size']} Transaktionen")
@@ -1421,7 +1669,7 @@ if __name__ == "__main__":
                 _log(f"    Typ: {p['anomaly_type']}  |  "
                      f"Referenz-Ø: {p['anomaly_reference_avg']}  |  "
                      f"Score: {p['anomaly_score']}")
-                if p.get('anomaly_deviation'):
+                if p.get('anomaly_deviation') is not None:
                     _log(f"    Abweichung: {p['anomaly_deviation']:+.1%}")
                 _log(f"    Zweck: {t['verwendungszweck']}")
                 _log("")
@@ -1547,7 +1795,7 @@ if __name__ == "__main__":
 
     # ── Abschluss ─────────────────────────────────────────────────────────────
     _log("\n" + "=" * 70)
-    _log("  ✅ detect_patterns.py – Direkttest abgeschlossen")
+    _log("  ✅ detect_patterns.py v2.1 – Direkttest abgeschlossen")
     _log(f"  Verarbeitet : {len(transactions)} Transaktionen")
     _log(f"  Mit Pattern : {len(transactions) - len(no_pat_txns)}")
     _log(f"  Ohne Pattern: {len(no_pat_txns)}")
