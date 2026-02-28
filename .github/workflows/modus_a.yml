@@ -1,27 +1,18 @@
 name: Sweepy Pipeline
-
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:      # manuell auslösbar
-
+  workflow_dispatch:      # nur manuell auslösbar
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Dependencies installieren
         run: pip install anthropic firebase-admin python-dateutil
-
       - name: Service Account JSON schreiben
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > bank-417a7-firebase-adminsdk-fbsvc-60ba2be615.json
-
       - name: Pipeline ausführen
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
