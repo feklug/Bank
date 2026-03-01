@@ -8,7 +8,10 @@ Schritte:
   1. Daten laden           → tink_demo_transactions.json
   2. Kategorisieren        → categorize.py        (Claude API)
   3. Pattern Detection     → detect_patterns.py   (Statistik + Firestore)
-  4. Verteilungsberechnung → calculate_unknown.py (Poisson + Firestore)
+     → patterns_db         : ein Dokument pro Muster (inkl. Transaktionen + Uhrzeit)
+     → distributions_db    : ein Dokument pro Transaktion ohne Muster
+  4. Verteilungsberechnung → calculate_unknown.py (Poisson + Forecast + Firestore)
+     → forecast_distribution: Wahrscheinlichkeitsverteilung für Frontend
 
 Verwendung:
   python pipeline.py
@@ -39,6 +42,8 @@ def main():
     print(f"  ✅ {len(transactions)} Transaktionen geladen")
 
     # ── Schritt 2: Kategorisieren ─────────────────────────────────────────────
+    # categorize() verarbeitet alle Status ausser REJECTED/REVERSED/CANCELLED.
+    # BOOKED und PENDING werden beide kategorisiert und mit status-Feld markiert.
     print(f"\n[2/4] Kategorisierung via Claude API...")
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -51,12 +56,13 @@ def main():
     categorized = categorize(transactions, api_key=api_key)
     print(f"  ✅ {len(categorized)} Transaktionen kategorisiert")
 
+    if not categorized:
+        print("  ❌ Keine Transaktionen nach Kategorisierung – Pipeline abgebrochen.")
+        sys.exit(1)
+
     # ── Schritt 3: Pattern Detection + Firestore ──────────────────────────────
-    # detect_patterns() übernimmt beides:
-    #   a) Muster erkennen  (RECURRING / SEASONAL / SEQUENTIAL)
-    #   b) In Firestore speichern
-    #      → patterns_db      : ein Dokument pro Muster (inkl. Transaktionen)
-    #      → distributions_db : ein Dokument pro Transaktion ohne Muster
+    # detect_patterns() erkennt Muster UND speichert selbst in Firestore.
+    # Gibt {"total_patterns": int, "distributions": int} zurück.
     print(f"\n[3/4] Pattern Detection + Firestore Speicherung...")
     from detect_patterns import detect_patterns
     fs_result = detect_patterns(categorized)
@@ -64,12 +70,9 @@ def main():
           f"{fs_result['distributions']} Distributions")
 
     # ── Schritt 4: Wahrscheinlichkeitsverteilung ──────────────────────────────
-    # calculate_unknown() liest distributions_db aus Firestore (Schritt 3 muss
-    # zuerst abgeschlossen sein) und berechnet pro Gruppe:
-    #   - Poisson-Parameter (λ, P(≥1 Tx/Monat))
-    #   - Normalverteilung der Beträge (μ, σ, 90%- / 95%-CI)
-    #   - Vorausschau der nächsten 6 Monate
-    # Ergebnis → forecast_distribution (für Frontend-Zugriff)
+    # calculate_unknown() liest distributions_db (Schritt 3 muss abgeschlossen sein)
+    # und berechnet Poisson-Verteilung + Forecast pro Transaktionsgruppe.
+    # Zeitfenster basiert auf letztem Transaktionsdatum in den Daten (nicht today).
     print(f"\n[4/4] Wahrscheinlichkeitsverteilung berechnen...")
     from calculate_unknown import calculate_unknown
     dist_result = calculate_unknown()
@@ -79,11 +82,11 @@ def main():
     # ── Abschluss ─────────────────────────────────────────────────────────────
     print("\n" + "=" * 70)
     print("  ✅ MODUS A ABGESCHLOSSEN")
-    print(f"  Transaktionen total       : {len(categorized)}")
-    print(f"  Firestore patterns_db     : {fs_result['total_patterns']}")
-    print(f"  Firestore distributions_db: {fs_result['distributions']}")
-    print(f"  Firestore forecast_dist.  : {dist_result['groups_written']} Gruppen")
-    print(f"  Abgeschlossen             : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"  Transaktionen total        : {len(categorized)}")
+    print(f"  Firestore patterns_db      : {fs_result['total_patterns']}")
+    print(f"  Firestore distributions_db : {fs_result['distributions']}")
+    print(f"  Firestore forecast_dist.   : {dist_result['groups_written']} Gruppen")
+    print(f"  Abgeschlossen              : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
 
 
