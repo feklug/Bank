@@ -172,18 +172,13 @@ def _parse_iban(counterparties: list) -> str | None:
 
 
 def _parse_gegenpartei(txn: dict) -> str:
-    """Gegenpartei: counterparties[0].name -> descriptions.display -> original -> gegenpartei-Feld."""
+    """Gegenpartei: counterparties[0].name -> descriptions.display -> original."""
     for cp in txn.get("counterparties", []):
         name = cp.get("name", "").strip()
         if name:
             return name
     descs = txn.get("descriptions", {})
-    return (
-        descs.get("display")
-        or descs.get("original")
-        or txn.get("gegenpartei", "")
-        or "Unbekannt"
-    )
+    return descs.get("display") or descs.get("original") or "Unbekannt"
 
 
 def parse_tink_transactions(raw: list) -> list:
@@ -200,19 +195,18 @@ def parse_tink_transactions(raw: list) -> list:
         counterparties[].{name, identifiers.iban.iban}
 
     Output-Felder (intern flat):
-        datum, bookedDateTime, betrag, verwendungszweck, gegenpartei, iban, status
+        datum, bookedDateTime, betrag, verwendungszweck, gegenpartei, iban
     """
-    result  = []
-    skipped = 0
+    result        = []
+    skipped       = 0
     status_counts: dict[str, int] = {}
 
     for t in raw:
-        status = t.get("status", "UNKNOWN")
+        status = t.get("status") or "UNKNOWN"
         status_counts[status] = status_counts.get(status, 0) + 1
 
-        # Demo-Daten haben oft kein "status"-Feld oder andere Werte.
-        # Wir verarbeiten ALLE Transaktionen und markieren den Status im Output.
-        # Ausnahme: explizit abgelehnte Status (REJECTED, REVERSED, CANCELLED).
+        # Nur wirklich ungültige Transaktionen überspringen.
+        # PENDING, UNKNOWN und alle anderen werden verarbeitet und mit Status markiert.
         if status in ("REJECTED", "REVERSED", "CANCELLED"):
             skipped += 1
             continue
@@ -220,49 +214,27 @@ def parse_tink_transactions(raw: list) -> list:
         dates = t.get("dates", {})
         descs = t.get("descriptions", {})
 
-        # Datum: booked > executionDate > valueDate > leer
-        datum = (
-            dates.get("booked")
-            or dates.get("executionDate")
-            or dates.get("valueDate")
-            or t.get("date", "")
-            or ""
-        )
-
-        # Tink-Demo: manchmal flaches Format ohne verschachteltes dates-Objekt
-        if not datum:
-            datum = t.get("datum", "")
-
         verwendungszweck = (
             descs.get("detailed", {}).get("unstructured")
             or descs.get("display")
             or descs.get("original")
-            or t.get("verwendungszweck", "")
             or ""
         )
 
-        # Betrag: verschachteltes Tink-Format ODER bereits flacher float
-        raw_amount = t.get("amount", {})
-        if isinstance(raw_amount, (int, float)):
-            betrag = round(float(raw_amount), 2)
-        elif raw_amount:
-            betrag = _parse_betrag(raw_amount)
-        else:
-            betrag = round(float(t.get("betrag", 0.0)), 2)
-
         result.append({
-            "datum":            datum,
-            "bookedDateTime":   dates.get("bookedDateTime", t.get("bookedDateTime", "")),
-            "betrag":           betrag,
+            "datum":            dates.get("booked", ""),
+            "bookedDateTime":   dates.get("bookedDateTime", ""),
+            "betrag":           _parse_betrag(t.get("amount", {})),
             "verwendungszweck": verwendungszweck,
             "gegenpartei":      _parse_gegenpartei(t),
             "iban":             _parse_iban(t.get("counterparties", [])),
-            "status":           status,   # BOOKED | PENDING | UNKNOWN | ...
+            "status":           status,
         })
 
+    # Status-Übersicht immer ausgeben (nicht nur bei skipped)
     if status_counts:
-        counts_str = "  ".join(f"{s}: {n}" for s, n in sorted(status_counts.items()))
-        print(f"    i   Status-Verteilung: {counts_str}")
+        counts_str = "  ".join(f"{s}:{n}" for s, n in sorted(status_counts.items()))
+        print(f"    i   Status: {counts_str}")
     if skipped:
         print(f"    i   {skipped} Transaktionen uebersprungen (REJECTED/REVERSED/CANCELLED)")
 
@@ -305,7 +277,7 @@ def validate_result(result: dict) -> dict:
     """
     cat = result.get("category_level1", "").strip()
     if cat not in VALID_CATEGORIES:
-        # Normalisierung: KI schreibt manchmal "–" (em-dash) statt "-" (hyphen) oder umgekehrt
+        # Normalisierung: em-dash "–" → normaler Bindestrich "-"
         normalized = cat.replace(" – ", " - ").replace(" — ", " - ")
         if normalized in VALID_CATEGORIES:
             result["category_level1"] = normalized
@@ -453,20 +425,15 @@ def categorize(transactions: list, api_key: str) -> list:
     """
     Kategorisiert eine Liste von Tink-Rohtransaktionen vollstaendig im Memory.
 
-    Akzeptiert sowohl Tink /data/v2/transactions Format (verschachtelt)
-    als auch flaches Format (direkte Felder datum/betrag/gegenpartei).
-    Verarbeitet ALLE Status ausser REJECTED/REVERSED/CANCELLED.
-    PENDING-Transaktionen werden mit status="PENDING" markiert weitergereicht.
-
     Parameters:
         transactions : Rohe Tink-Dicts aus tink_demo_transactions.json
         api_key      : Anthropic API-Key
 
     Returns:
-        Liste mit 10 Feldern pro Transaktion:
+        Liste mit 9 Feldern pro Transaktion:
         datum, bookedDateTime, betrag, verwendungszweck, gegenpartei,
-        iban, status, category_level1, confidence, reasoning.
-        Bereit fuer detect_patterns.py.
+        iban, category_level1, confidence, reasoning.
+        Nur BOOKED. Bereit fuer detect_patterns.py.
     """
     # 1) Tink-Format parsen, nur BOOKED behalten
     parsed = parse_tink_transactions(transactions)
