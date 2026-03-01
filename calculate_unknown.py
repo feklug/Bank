@@ -11,6 +11,16 @@ Statistisches Modell:
   - Normalverteilung : Schätzt μ (Mittelwert) und σ (Streuung) der Beträge
                        inkl. 90%- und 95%-Konfidenzintervall
 
+  NEU – Präzisere Vorhersage via bookedDateTime:
+  - Buchungsstunde   : avg_booking_hour / booking_hour_std / next_expected_time
+                       Ermöglicht Tages-genaue Forecast-Zeitstempel
+  - Wochentag-Analyse: Dominanter Wochentag (z.B. "Montag 62%")
+                       → next_likely_date wählt nächsten solchen Wochentag
+  - Monatstag-Analyse: Dominante Monatshälfte (1-15 vs. 16-31)
+                       + Durchschnittlicher Monatstag
+  - next_likely_date : Kombination aus Wochentag-Tendenz + Buchungszeit
+                       → präzisester einzelner Vorhersagewert pro Gruppe
+
 Zeitfenster:
   Referenzdatum = letztes Transaktionsdatum in distributions_db
   (NICHT today – damit funktioniert das Modul auch mit historischen Demo-Daten)
@@ -28,7 +38,7 @@ CLI (Standalone):
 import math
 import re
 import sys
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import date, datetime, timedelta
 from statistics import mean, stdev
 
@@ -45,6 +55,8 @@ CI_95_Z             = 1.960  # Z-Wert für 95%-Konfidenzintervall
 
 SOURCE_COLLECTION   = "distributions_db"
 TARGET_COLLECTION   = "forecast_distribution"
+
+DOW_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
 
 # ─────────────────────────────────────────────
@@ -75,20 +87,34 @@ def _init_firestore():
 # DATEN LADEN
 # ─────────────────────────────────────────────
 
+def _parse_booked_dt(raw: str) -> datetime | None:
+    """Parst bookedDateTime ISO 8601 → datetime (timezone-naiv). None bei leerem Wert."""
+    if not raw:
+        return None
+    try:
+        s  = raw.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        return dt.replace(tzinfo=None)
+    except (ValueError, AttributeError):
+        return None
+
+
 def _load_all_distributions(db) -> list[dict]:
     """
     Lädt ALLE Transaktionen aus distributions_db ohne Datumsfilter.
-    Der Zeitfenster-Filter wird erst nach dem Laden angewendet,
-    damit wir zuerst das Referenzdatum aus den Daten ableiten können.
+    Ergänzt _date_obj (date) und _datetime_obj (datetime | None) aus
+    bookedDateTime für die Zeitanalyse.
     """
-    docs = db.collection(SOURCE_COLLECTION).stream()
+    docs         = db.collection(SOURCE_COLLECTION).stream()
     transactions = []
     for doc in docs:
         data = doc.to_dict()
         try:
             data["_date_obj"] = date.fromisoformat(data["datum"])
         except (KeyError, ValueError):
-            continue  # Dokument ohne gültiges Datum überspringen
+            continue
+        # bookedDateTime parsen – None wenn nicht vorhanden oder ungültig
+        data["_datetime_obj"] = _parse_booked_dt(data.get("bookedDateTime", ""))
         transactions.append(data)
     return transactions
 
@@ -96,20 +122,10 @@ def _load_all_distributions(db) -> list[dict]:
 def _determine_window(transactions: list[dict]) -> tuple[date, date, int]:
     """
     Leitet das Analysefenster aus den Daten ab.
-
-    Referenzdatum = letztes Transaktionsdatum in den Daten
-    Cutoff        = Referenzdatum - LOOKBACK_MONTHS
-
-    Damit funktioniert das Modul korrekt mit:
-      - Live-Daten    (Referenz ≈ today)
-      - Demo-Daten    (Referenz = letztes Datum im Datensatz)
-      - Backfills     (Referenz = Ende des importierten Zeitraums)
-
-    Returns:
-        (cutoff_date, reference_date, n_months)
+    Referenzdatum = letztes Transaktionsdatum (nicht today).
     """
     if not transactions:
-        today = date.today()
+        today        = date.today()
         cutoff_month = today.month - LOOKBACK_MONTHS
         cutoff_year  = today.year
         while cutoff_month <= 0:
@@ -117,12 +133,9 @@ def _determine_window(transactions: list[dict]) -> tuple[date, date, int]:
             cutoff_year  -= 1
         return date(cutoff_year, cutoff_month, 1), today, LOOKBACK_MONTHS
 
-    # Letztes Transaktionsdatum als Referenz
     reference_date = max(t["_date_obj"] for t in transactions)
-
-    # Cutoff = LOOKBACK_MONTHS vor dem Referenzdatum
-    cutoff_month = reference_date.month - LOOKBACK_MONTHS
-    cutoff_year  = reference_date.year
+    cutoff_month   = reference_date.month - LOOKBACK_MONTHS
+    cutoff_year    = reference_date.year
     while cutoff_month <= 0:
         cutoff_month += 12
         cutoff_year  -= 1
@@ -146,14 +159,8 @@ def _filter_by_window(transactions: list[dict], cutoff_date: date, reference_dat
 def _build_groups(transactions: list[dict]) -> dict[str, list[dict]]:
     """
     Erstellt zwei Gruppenebenen:
-
     1. Primär  : category_level1 + gegenpartei  (spezifisch)
-                 Schlüssel: "AUSGABEN – PERSONAL :: Muster AG"
     2. Fallback: nur category_level1             (aggregiert)
-                 Schlüssel: "AUSGABEN – PERSONAL"
-
-    Primärgruppe wird verwendet wenn sie >= MIN_SAMPLE_SINGLE Einträge hat,
-    sonst wird die Transaktion der Kategorie-Gruppe zugeschlagen.
     """
     primary: defaultdict[str, list] = defaultdict(list)
     for t in transactions:
@@ -179,6 +186,175 @@ def _build_groups(transactions: list[dict]) -> dict[str, list[dict]]:
 
 
 # ─────────────────────────────────────────────
+# UHRZEIT-ANALYSE  (NEU)
+# ─────────────────────────────────────────────
+
+def _booking_time_stats(transactions: list[dict]) -> dict:
+    """
+    Berechnet Buchungszeit-Statistiken aus bookedDateTime (_datetime_obj).
+
+    Returns:
+        avg_booking_hour      : float | None   (z.B. 8.5 = 08:30)
+        booking_hour_std      : float | None
+        next_expected_time    : str   | None   (z.B. "08:30")
+        time_data_available   : bool
+        time_data_count       : int            (Transaktionen mit Zeitdaten)
+    """
+    hours   = []
+    minutes = []
+
+    for t in transactions:
+        dt = t.get("_datetime_obj")
+        if dt:
+            hours.append(dt.hour + dt.minute / 60.0)
+            minutes.append(dt.minute)
+
+    if not hours:
+        return {
+            "avg_booking_hour":   None,
+            "booking_hour_std":   None,
+            "next_expected_time": None,
+            "time_data_available": False,
+            "time_data_count":    0,
+        }
+
+    avg_h = mean(hours)
+    std_h = round(stdev(hours), 2) if len(hours) >= 2 else 0.0
+    h_int = int(avg_h)
+    m_int = round((avg_h - h_int) * 60)
+    if m_int >= 60:
+        h_int += 1
+        m_int  = 0
+
+    return {
+        "avg_booking_hour":    round(avg_h, 2),
+        "booking_hour_std":    std_h,
+        "next_expected_time":  f"{h_int:02d}:{m_int:02d}",
+        "time_data_available": True,
+        "time_data_count":     len(hours),
+    }
+
+
+# ─────────────────────────────────────────────
+# WOCHENTAG- & MONATSTAG-ANALYSE  (NEU)
+# ─────────────────────────────────────────────
+
+def _weekday_stats(transactions: list[dict]) -> dict:
+    """
+    Analysiert an welchen Wochentagen diese Gruppe typischerweise bucht.
+
+    Returns:
+        dominant_weekday       : str   (z.B. "Montag")
+        dominant_weekday_idx   : int   (0=Mo … 6=So)
+        dominant_weekday_pct   : float (Anteil 0–100)
+        weekday_distribution   : dict  {"Montag": 3, "Dienstag": 1, ...}
+        weekday_is_reliable    : bool  (dominant_weekday_pct >= 50%)
+    """
+    counts: Counter = Counter()
+    for t in transactions:
+        counts[t["_date_obj"].weekday()] += 1
+
+    if not counts:
+        return {
+            "dominant_weekday":     None,
+            "dominant_weekday_idx": None,
+            "dominant_weekday_pct": None,
+            "weekday_distribution": {},
+            "weekday_is_reliable":  False,
+        }
+
+    total     = sum(counts.values())
+    dom_idx   = counts.most_common(1)[0][0]
+    dom_count = counts[dom_idx]
+    dom_pct   = round(dom_count / total * 100, 1)
+
+    return {
+        "dominant_weekday":     DOW_NAMES[dom_idx],
+        "dominant_weekday_idx": dom_idx,
+        "dominant_weekday_pct": dom_pct,
+        "weekday_distribution": {DOW_NAMES[i]: counts[i] for i in range(7) if counts[i] > 0},
+        "weekday_is_reliable":  dom_pct >= 50.0,
+    }
+
+
+def _dom_stats(transactions: list[dict]) -> dict:
+    """
+    Analysiert an welchem Monatstag (day-of-month) diese Gruppe typischerweise bucht.
+
+    Returns:
+        avg_day_of_month    : float  (Durchschnittlicher Tag, z.B. 14.3)
+        dom_half            : str    ("erste Hälfte" | "zweite Hälfte")
+        dom_first_half_pct  : float  (Anteil 1.–15. in %)
+    """
+    days = [t["_date_obj"].day for t in transactions]
+    if not days:
+        return {"avg_day_of_month": None, "dom_half": None, "dom_first_half_pct": None}
+
+    avg_dom        = round(mean(days), 1)
+    first_half     = sum(1 for d in days if d <= 15)
+    first_half_pct = round(first_half / len(days) * 100, 1)
+
+    return {
+        "avg_day_of_month":   avg_dom,
+        "dom_half":           "erste Hälfte" if first_half_pct >= 50 else "zweite Hälfte",
+        "dom_first_half_pct": first_half_pct,
+    }
+
+
+def _next_likely_date(
+    reference_date: date,
+    weekday_stats:  dict,
+    dom_stats:      dict,
+    time_stats:     dict,
+) -> str | None:
+    """
+    Berechnet das wahrscheinlichste nächste Auftrittsdatum.
+
+    Logik:
+      1. Wochentag zuverlässig (>= 50%) → nächster solcher Wochentag ab reference_date
+      2. Kein zuverlässiger Wochentag    → reference_date + 30 Tage (monatliche Erwartung),
+         verschoben auf avg_day_of_month in diesem Monat
+      3. Uhrzeit anhängen wenn time_data_available
+
+    Gibt ISO-String zurück: "2024-03-05" oder "2024-03-05T08:30:00"
+    """
+    dom_idx = weekday_stats.get("dominant_weekday_idx")
+
+    if weekday_stats.get("weekday_is_reliable") and dom_idx is not None:
+        # Nächster passender Wochentag (frühestens +1 Tag)
+        candidate = reference_date + timedelta(days=1)
+        for _ in range(7):
+            if candidate.weekday() == dom_idx:
+                break
+            candidate += timedelta(days=1)
+        base_date = candidate
+    else:
+        # Kein klarer Wochentag → in etwa 1 Monat, gerundet auf avg_day_of_month
+        avg_dom = dom_stats.get("avg_day_of_month")
+        if avg_dom:
+            target_day = int(round(avg_dom))
+            m = reference_date.month + 1 if reference_date.month < 12 else 1
+            y = reference_date.year if reference_date.month < 12 else reference_date.year + 1
+            import calendar
+            target_day = min(target_day, calendar.monthrange(y, m)[1])
+            base_date  = date(y, m, target_day)
+        else:
+            base_date = reference_date + timedelta(days=30)
+
+    # Auf Werktag verschieben (Sa/So → Mo)
+    while base_date.weekday() >= 5:
+        base_date += timedelta(days=1)
+
+    date_str = base_date.isoformat()
+
+    # Uhrzeit anhängen wenn verfügbar
+    if time_stats.get("time_data_available") and time_stats.get("next_expected_time"):
+        return f"{date_str}T{time_stats['next_expected_time']}:00"
+
+    return date_str
+
+
+# ─────────────────────────────────────────────
 # STATISTIK PRO GRUPPE
 # ─────────────────────────────────────────────
 
@@ -199,7 +375,7 @@ def _iter_months(start: date, end: date):
 
 def _compute_monthly_breakdown(
     transactions: list[dict],
-    cutoff_date: date,
+    cutoff_date:  date,
     reference_date: date,
 ) -> dict[str, dict]:
     """
@@ -216,17 +392,14 @@ def _compute_monthly_breakdown(
         if label in breakdown:
             amt = abs(t.get("betrag", 0.0))
             breakdown[label]["count"]  += 1
-            breakdown[label]["total"]  = round(breakdown[label]["total"] + amt, 2)
+            breakdown[label]["total"]   = round(breakdown[label]["total"] + amt, 2)
             breakdown[label]["amounts"].append(round(amt, 2))
 
     return breakdown
 
 
 def _poisson_stats(n_transactions: int, n_months: int) -> dict:
-    """
-    Poisson-Parameter aus beobachteter Häufigkeit.
-    λ = n / n_months | P(≥1) = 1 - e^(-λ)
-    """
+    """Poisson-Parameter aus beobachteter Häufigkeit."""
     lm    = round(n_transactions / n_months, 4)
     p_any = round(1.0 - math.exp(-lm), 4)
     return {
@@ -258,18 +431,19 @@ def _amount_stats(amounts: list[float]) -> dict:
 
 
 def _build_forecast_months(
-    reference_date:    date,
-    horizon:           int,
-    lambda_per_month:  float,
-    amount_mean:       float,
-    amount_std:        float,
+    reference_date:   date,
+    horizon:          int,
+    lambda_per_month: float,
+    amount_mean:      float,
+    amount_std:       float,
+    expected_time:    str | None,
 ) -> list[dict]:
     """
-    Vorausschau der nächsten `horizon` Monate ab reference_date.
-    Stationäres Modell: λ und μ gelten als konstant pro Monat.
+    Vorausschau der nächsten `horizon` Monate.
+    Enthält next_expected_time pro Monat wenn verfügbar.
     """
     forecast = []
-    cursor = reference_date
+    cursor   = reference_date
 
     for _ in range(horizon):
         if cursor.month == 12:
@@ -282,14 +456,18 @@ def _build_forecast_months(
         ci_low   = round(max(0.0, lambda_per_month * max(0.0, amount_mean - CI_90_Z * amount_std)), 2)
         ci_high  = round(lambda_per_month * (amount_mean + CI_90_Z * amount_std), 2)
 
-        forecast.append({
+        entry = {
             "month":           _month_label(cursor),
             "probability":     p_any,
             "probability_pct": round(p_any * 100, 1),
             "expected_amount": expected,
             "ci_90_low":       ci_low,
             "ci_90_high":      ci_high,
-        })
+        }
+        if expected_time:
+            entry["expected_time"] = expected_time   # NEU: Uhrzeit pro Forecast-Monat
+
+        forecast.append(entry)
 
     return forecast
 
@@ -310,6 +488,12 @@ def _build_distribution_doc(
     amt_stats = _amount_stats(amounts)
     monthly   = _compute_monthly_breakdown(transactions, cutoff_date, reference_date)
 
+    # NEU: Zeit-, Wochentag- und Monatstag-Analyse
+    time_stats    = _booking_time_stats(transactions)
+    weekday       = _weekday_stats(transactions)
+    dom           = _dom_stats(transactions)
+    next_likely   = _next_likely_date(reference_date, weekday, dom, time_stats)
+
     if " :: " in group_key:
         category, counterparty = group_key.split(" :: ", 1)
         group_type = "category_counterparty"
@@ -328,6 +512,7 @@ def _build_distribution_doc(
         lambda_per_month = poisson["lambda_per_month"],
         amount_mean      = amt_stats.get("amount_mean", 0.0),
         amount_std       = amt_stats.get("amount_std", 0.0),
+        expected_time    = time_stats.get("next_expected_time"),   # NEU
     )
 
     return {
@@ -347,6 +532,25 @@ def _build_distribution_doc(
         # ── Normalverteilung: Beträge ────────────────────────────────
         **amt_stats,
         "amount_expected_monthly": amount_expected_monthly,
+        # ── NEU: Uhrzeit-Analyse ─────────────────────────────────────
+        "avg_booking_hour":        time_stats["avg_booking_hour"],
+        "booking_hour_std":        time_stats["booking_hour_std"],
+        "next_expected_time":      time_stats["next_expected_time"],
+        "time_data_available":     time_stats["time_data_available"],
+        "time_data_count":         time_stats["time_data_count"],
+        # ── NEU: Wochentag-Tendenz ────────────────────────────────────
+        "dominant_weekday":        weekday["dominant_weekday"],
+        "dominant_weekday_pct":    weekday["dominant_weekday_pct"],
+        "weekday_is_reliable":     weekday["weekday_is_reliable"],
+        "weekday_distribution":    weekday["weekday_distribution"],
+        # ── NEU: Monatstag-Tendenz ────────────────────────────────────
+        "avg_day_of_month":        dom["avg_day_of_month"],
+        "dom_half":                dom["dom_half"],
+        "dom_first_half_pct":      dom["dom_first_half_pct"],
+        # ── NEU: Bester Einzelvorhersagewert ─────────────────────────
+        # Kombiniert Wochentag-Tendenz + avg_day_of_month + Uhrzeit.
+        # Frontend nutzt dieses Feld analog zu next_expected_date in pattern_db.
+        "next_likely_date":        next_likely,
         # ── Monatliche Aufschlüsselung ───────────────────────────────
         "monthly_breakdown":       monthly,
         # ── Vorausschau nächste 6 Monate ─────────────────────────────
@@ -381,11 +585,11 @@ def calculate_unknown() -> dict:
     Haupteinstiegspunkt für pipeline.py.
 
     Ablauf:
-      1. Alle Dokumente aus distributions_db laden
+      1. Alle Dokumente aus distributions_db laden (inkl. bookedDateTime)
       2. Analysefenster aus den Daten ableiten (letztes Datum - 6 Monate)
       3. Transaktionen auf das Fenster filtern
       4. Nach Kategorie (+Gegenpartei) gruppieren
-      5. Pro Gruppe: Poisson + Normalverteilung + Forecast berechnen
+      5. Pro Gruppe: Poisson + Normalverteilung + Zeit/Wochentag/DOM + Forecast berechnen
       6. Ergebnisse in forecast_distribution schreiben
 
     Returns:
@@ -393,32 +597,30 @@ def calculate_unknown() -> dict:
     """
     db = _init_firestore()
 
-    # 1. Alle Transaktionen laden (kein Datumsfilter)
     all_transactions = _load_all_distributions(db)
 
     if not all_transactions:
         print("    ⚠️  Keine Transaktionen in distributions_db – nichts zu berechnen.")
         return {"groups_written": 0, "transactions_analyzed": 0}
 
-    # 2. Fenster aus den Daten ableiten
     cutoff_date, reference_date, n_months = _determine_window(all_transactions)
     print(f"    Zeitfenster  : {cutoff_date} → {reference_date}  ({n_months} Monate)")
     print(f"    Referenz     : letztes Transaktionsdatum in den Daten")
 
-    # 3. Auf Fenster filtern
     transactions = _filter_by_window(all_transactions, cutoff_date, reference_date)
+
+    with_time = sum(1 for t in transactions if t.get("_datetime_obj"))
     print(f"    Transaktionen: {len(transactions)} im Fenster  "
           f"({len(all_transactions)} total in distributions_db)")
+    print(f"    Mit Uhrzeit  : {with_time}/{len(transactions)} haben bookedDateTime")
 
     if not transactions:
         print("    ⚠️  Keine Transaktionen im Zeitfenster – nichts zu berechnen.")
         return {"groups_written": 0, "transactions_analyzed": 0}
 
-    # 4. Gruppieren
-    groups = _build_groups(transactions)
+    groups    = _build_groups(transactions)
     print(f"    Gruppen      : {len(groups)}")
 
-    # 5. Dokumente bauen
     documents = [
         _build_distribution_doc(
             group_key      = gkey,
@@ -430,7 +632,6 @@ def calculate_unknown() -> dict:
         for gkey, txs in groups.items()
     ]
 
-    # 6. Firestore schreiben
     written = _write_to_firestore(db, documents)
     print(f"    Geschrieben  : {written} Dokumente → '{TARGET_COLLECTION}'")
 
@@ -459,27 +660,55 @@ def _print_group_summary(doc: dict):
     print(f"  90%-CI         : CHF {doc.get('amount_ci_90_low', 0):>10,.2f}  –  "
           f"CHF {doc.get('amount_ci_90_high', 0):,.2f}")
     print(f"  Erw. Monatslast: CHF {doc.get('amount_expected_monthly', 0):>10,.2f}")
+
+    # NEU: Uhrzeit & Wochentag
+    if doc.get("time_data_available"):
+        print(f"  Buchungszeit   : Ø {doc['avg_booking_hour']:.1f}h  "
+              f"→ {doc['next_expected_time']}  (σ={doc['booking_hour_std']}h, "
+              f"n={doc['time_data_count']})")
+    else:
+        print(f"  Buchungszeit   : keine bookedDateTime-Daten")
+
+    dow = doc.get("dominant_weekday")
+    if dow:
+        reliable = "✓ zuverlässig" if doc.get("weekday_is_reliable") else "schwach"
+        print(f"  Wochentag      : {dow}  ({doc['dominant_weekday_pct']}%)  [{reliable}]")
+
+    dom_half = doc.get("dom_half")
+    if dom_half:
+        print(f"  Monatstag Ø    : {doc['avg_day_of_month']}  ({dom_half}, "
+              f"1.–15.: {doc['dom_first_half_pct']}%)")
+
+    next_ld = doc.get("next_likely_date")
+    if next_ld:
+        time_flag = "  🕐" if "T" in next_ld else ""
+        print(f"  Nächstm. Datum : \033[92m{next_ld}\033[0m{time_flag}")
+
     forecasts = doc.get("forecast_months", [])[:3]
     if forecasts:
         print(f"  Vorausschau    :", end="")
         for fm in forecasts:
-            print(f"  {fm['month']} ({fm['probability_pct']}% / CHF {fm['expected_amount']:,.0f})", end="")
+            t_str = f" {fm['expected_time']}" if fm.get("expected_time") else ""
+            print(f"  {fm['month']}{t_str} ({fm['probability_pct']}% / CHF {fm['expected_amount']:,.0f})", end="")
         print(" ...")
 
 
 def _print_summary_table(documents: list[dict]):
-    SEP = "=" * 70
+    SEP = "=" * 80
     print(f"\n{SEP}")
     print(f"  FORECAST DISTRIBUTION – ÜBERSICHT  ({len(documents)} Gruppen)")
     print(f"{SEP}")
-    print(f"  {'Gruppe':<42}  {'P(≥1)':<7}  {'Ø Betrag':>12}  {'Erw./Mo':>12}")
-    print(f"  {'─'*42}  {'─'*7}  {'─'*12}  {'─'*12}")
+    print(f"  {'Gruppe':<38}  {'P(≥1)':<7}  {'Ø Betrag':>12}  {'Nächstm. Datum':<22}  {'Uhrzeit':<8}")
+    print(f"  {'─'*38}  {'─'*7}  {'─'*12}  {'─'*22}  {'─'*8}")
     for doc in sorted(documents, key=lambda d: d.get("amount_expected_monthly", 0), reverse=True):
+        next_ld   = doc.get("next_likely_date", "-") or "-"
+        time_part = doc.get("next_expected_time", "-") or "-"
         print(
-            f"  {doc['group_key'][:42]:<42}  "
+            f"  {doc['group_key'][:38]:<38}  "
             f"{doc['probability_any_pct']:>5.1f}%  "
             f"CHF {doc.get('amount_mean', 0):>8,.0f}  "
-            f"CHF {doc.get('amount_expected_monthly', 0):>8,.0f}"
+            f"{next_ld:<22}  "
+            f"{time_part:<8}"
         )
     print(f"{SEP}")
 
@@ -503,8 +732,10 @@ def main():
     cutoff_date, reference_date, n_months = _determine_window(all_transactions)
     transactions = _filter_by_window(all_transactions, cutoff_date, reference_date)
 
+    with_time = sum(1 for t in transactions if t.get("_datetime_obj"))
     print(f"  Zeitfenster  : {cutoff_date} → {reference_date}  ({n_months} Monate)")
-    print(f"  Im Fenster   : {len(transactions)} Transaktionen\n")
+    print(f"  Im Fenster   : {len(transactions)} Transaktionen")
+    print(f"  Mit Uhrzeit  : {with_time}/{len(transactions)} haben bookedDateTime\n")
 
     if not transactions:
         print("  ⚠️  Keine Transaktionen im Fenster – Abbruch.")
