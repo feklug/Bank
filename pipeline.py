@@ -1,93 +1,244 @@
 """
-pipeline.py – Modus A
-=====================
-Orchestriert die komplette Modus-A-Pipeline.
-Alle Zwischenergebnisse bleiben im Memory – keine Dateien auf Disk.
+pipeline.py
+===========
+Orchestriert den vollständigen Analyse-Workflow:
 
-Schritte:
-  1. Daten laden           → tink_demo_transactions.json
-  2. Kategorisieren        → categorize.py        (Claude API)
-  3. Pattern Detection     → detect_patterns.py   (Statistik + Firestore)
-     → patterns_db         : ein Dokument pro Muster (inkl. Transaktionen + Uhrzeit)
-     → distributions_db    : ein Dokument pro Transaktion ohne Muster
-  4. Verteilungsberechnung → calculate_unknown.py (Poisson + Forecast + Firestore)
-     → forecast_distribution: Wahrscheinlichkeitsverteilung für Frontend
+  1. categorize.py       → tink_demo_transactions.json → tink_categorized.json
+  2. detect_patterns.py  → tink_categorized.json       → tink_patterns.json
+  3. organisational.py   → tink_patterns.json          → Firestore (patterns_db, distributions_db)
+  4. calculate_unknown.py→ Firestore distributions_db  → Firestore forecast_distribution
 
-Verwendung:
-  python pipeline.py
+Konfiguration via Env-Variablen (alle optional, Defaults siehe unten):
+  INPUT_FILE     Pfad zur Rohtransaktions-JSON  (default: data/tink_demo_transactions.json)
+  OUTPUT_DIR     Ausgabeverzeichnis             (default: data/)
+  ANTHROPIC_API_KEY             für Step 1
+  GOOGLE_APPLICATION_CREDENTIALS für Steps 3 + 4
 """
 
-import json
 import os
 import sys
+import time
 from datetime import datetime
 
+# ─────────────────────────────────────────────
+# KONFIGURATION
+# ─────────────────────────────────────────────
+
+INPUT_FILE   = os.environ.get("INPUT_FILE",  "data/tink_demo_transactions.json")
+OUTPUT_DIR   = os.environ.get("OUTPUT_DIR",  "data")
+CATEGORIZED  = os.path.join(OUTPUT_DIR, "tink_categorized.json")
+PATTERNS     = os.path.join(OUTPUT_DIR, "tink_patterns.json")
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# ─────────────────────────────────────────────
+# HILFSFUNKTIONEN
+# ─────────────────────────────────────────────
+
+SEP      = "=" * 70
+SEP_THIN = "─" * 70
+
+def _header(step: int, title: str):
+    print(f"\n{SEP}")
+    print(f"  STEP {step}/4  ·  {title}")
+    print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(SEP)
+
+def _ok(step: int, title: str, elapsed: float):
+    print(f"\n  ✅  Step {step} abgeschlossen: {title}  ({elapsed:.1f}s)")
+    print(SEP_THIN)
+
+def _fail(step: int, title: str, error: Exception):
+    print(f"\n{SEP}")
+    print(f"  ❌  FEHLER in Step {step}: {title}")
+    print(f"  {type(error).__name__}: {error}")
+    print(SEP)
+    sys.exit(1)
+
+def _check_env(var: str, step_name: str):
+    """Bricht ab wenn eine erforderliche Env-Variable fehlt."""
+    if not os.environ.get(var):
+        print(f"\n❌  {var} nicht gesetzt (benötigt für {step_name})")
+        print(f"    Lokal  : export {var}='...'")
+        print(f"    GitHub : Settings → Secrets → {var}")
+        sys.exit(1)
+
+def _check_file(path: str, produced_by: str):
+    """Bricht ab wenn eine erwartete Output-Datei fehlt."""
+    if not os.path.exists(path):
+        print(f"\n❌  Erwartete Datei nicht gefunden: {path}")
+        print(f"    Wurde von {produced_by} nicht erzeugt.")
+        sys.exit(1)
+    size = os.path.getsize(path)
+    print(f"  📄  {path}  ({size:,} Bytes)")
+
+# ─────────────────────────────────────────────
+# STEP 1 – KATEGORISIERUNG
+# ─────────────────────────────────────────────
+
+def run_categorize():
+    _check_env("ANTHROPIC_API_KEY", "categorize.py")
+
+    # Env für das Submodul setzen
+    os.environ["INPUT_FILE"]  = INPUT_FILE
+    os.environ["OUTPUT_FILE"] = CATEGORIZED
+
+    _header(1, "Kategorisierung (categorize.py)")
+
+    # Import hier, damit Fehler klar dem Step zugeordnet werden können
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location(
+        "categorize",
+        pathlib.Path(__file__).parent / "categorize.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t0 = time.time()
+    try:
+        mod.main()
+    except SystemExit as e:
+        if e.code != 0:
+            raise RuntimeError(f"categorize.main() exited with code {e.code}") from e
+    elapsed = time.time() - t0
+
+    _check_file(CATEGORIZED, "categorize.py")
+    _ok(1, "Kategorisierung", elapsed)
+
+
+# ─────────────────────────────────────────────
+# STEP 2 – MUSTERERKENNUNG
+# ─────────────────────────────────────────────
+
+def run_detect_patterns():
+    os.environ["INPUT_FILE"]  = CATEGORIZED
+    os.environ["OUTPUT_FILE"] = PATTERNS
+
+    _header(2, "Mustererkennung (detect_patterns.py)")
+
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location(
+        "detect_patterns",
+        pathlib.Path(__file__).parent / "detect_patterns.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t0 = time.time()
+    try:
+        mod.main()
+    except SystemExit as e:
+        if e.code != 0:
+            raise RuntimeError(f"detect_patterns.main() exited with code {e.code}") from e
+    elapsed = time.time() - t0
+
+    _check_file(PATTERNS, "detect_patterns.py")
+    _ok(2, "Mustererkennung", elapsed)
+
+
+# ─────────────────────────────────────────────
+# STEP 3 – FIRESTORE EXPORT (patterns + distributions)
+# ─────────────────────────────────────────────
+
+def run_organisational():
+    _check_env("GOOGLE_APPLICATION_CREDENTIALS", "organisational.py")
+
+    os.environ["INPUT_FILE"] = PATTERNS
+
+    _header(3, "Firestore Export (organisational.py)")
+
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location(
+        "organisational",
+        pathlib.Path(__file__).parent / "organisational.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t0 = time.time()
+    try:
+        mod.main()
+    except SystemExit as e:
+        if e.code != 0:
+            raise RuntimeError(f"organisational.main() exited with code {e.code}") from e
+    elapsed = time.time() - t0
+
+    _ok(3, "Firestore Export", elapsed)
+
+
+# ─────────────────────────────────────────────
+# STEP 4 – WAHRSCHEINLICHKEITSVERTEILUNG
+# ─────────────────────────────────────────────
+
+def run_calculate_unknown():
+    _check_env("GOOGLE_APPLICATION_CREDENTIALS", "calculate_unknown.py")
+
+    _header(4, "Liquiditätsprognose (calculate_unknown.py)")
+
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location(
+        "calculate_unknown",
+        pathlib.Path(__file__).parent / "calculate_unknown.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    t0 = time.time()
+    try:
+        result = mod.calculate_unknown()
+        print(f"\n  Gruppen geschrieben    : {result.get('groups_written', '?')}")
+        print(f"  Transaktionen analysiert: {result.get('transactions_analyzed', '?')}")
+    except SystemExit as e:
+        if e.code != 0:
+            raise RuntimeError(f"calculate_unknown() exited with code {e.code}") from e
+    elapsed = time.time() - t0
+
+    _ok(4, "Liquiditätsprognose", elapsed)
+
+
+# ─────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────
+
+STEPS = [
+    (1, "Kategorisierung",      run_categorize),
+    (2, "Mustererkennung",      run_detect_patterns),
+    (3, "Firestore Export",     run_organisational),
+    (4, "Liquiditätsprognose",  run_calculate_unknown),
+]
 
 def main():
-    print("=" * 70)
-    print("  SWEEPY – MODUS A PIPELINE")
+    pipeline_start = time.time()
+
+    print(f"\n{SEP}")
+    print(f"  PIPELINE START")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 70)
+    print(f"  Input  : {INPUT_FILE}")
+    print(f"  Output : {OUTPUT_DIR}/")
+    print(SEP)
 
-    # ── Schritt 1: Daten laden ────────────────────────────────────────────────
-    INPUT_FILE = "tink_demo_transactions.json"
-    print(f"\n[1/4] Daten laden aus {INPUT_FILE}...")
-    if not os.path.exists(INPUT_FILE):
-        print(f"  ❌ Datei nicht gefunden: {INPUT_FILE}")
-        print(f"     Bitte sicherstellen dass {INPUT_FILE} im Repo liegt.")
-        sys.exit(1)
+    timings: list[tuple[str, float]] = []
 
-    with open(INPUT_FILE, encoding="utf-8") as f:
-        transactions = json.load(f)
-    print(f"  ✅ {len(transactions)} Transaktionen geladen")
+    for step_num, step_name, step_fn in STEPS:
+        t0 = time.time()
+        try:
+            step_fn()
+        except Exception as e:
+            _fail(step_num, step_name, e)
+        timings.append((step_name, round(time.time() - t0, 1)))
 
-    # ── Schritt 2: Kategorisieren ─────────────────────────────────────────────
-    # categorize() verarbeitet alle Status ausser REJECTED/REVERSED/CANCELLED.
-    # BOOKED und PENDING werden beide kategorisiert und mit status-Feld markiert.
-    print(f"\n[2/4] Kategorisierung via Claude API...")
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("  ❌ ANTHROPIC_API_KEY nicht gesetzt")
-        print("     GitHub: Settings → Secrets → ANTHROPIC_API_KEY")
-        print("     Lokal:  export ANTHROPIC_API_KEY=sk-ant-...")
-        sys.exit(1)
+    # ── Abschlussbericht ─────────────────────────────────────────
+    total = round(time.time() - pipeline_start, 1)
 
-    from categorize import categorize
-    categorized = categorize(transactions, api_key=api_key)
-    print(f"  ✅ {len(categorized)} Transaktionen kategorisiert")
-
-    if not categorized:
-        print("  ❌ Keine Transaktionen nach Kategorisierung – Pipeline abgebrochen.")
-        sys.exit(1)
-
-    # ── Schritt 3: Pattern Detection + Firestore ──────────────────────────────
-    # detect_patterns() erkennt Muster UND speichert selbst in Firestore.
-    # Gibt {"total_patterns": int, "distributions": int} zurück.
-    print(f"\n[3/4] Pattern Detection + Firestore Speicherung...")
-    from detect_patterns import detect_patterns
-    fs_result = detect_patterns(categorized)
-    print(f"  ✅ Firestore: {fs_result['total_patterns']} Pattern-Dokumente | "
-          f"{fs_result['distributions']} Distributions")
-
-    # ── Schritt 4: Wahrscheinlichkeitsverteilung ──────────────────────────────
-    # calculate_unknown() liest distributions_db (Schritt 3 muss abgeschlossen sein)
-    # und berechnet Poisson-Verteilung + Forecast pro Transaktionsgruppe.
-    # Zeitfenster basiert auf letztem Transaktionsdatum in den Daten (nicht today).
-    print(f"\n[4/4] Wahrscheinlichkeitsverteilung berechnen...")
-    from calculate_unknown import calculate_unknown
-    dist_result = calculate_unknown()
-    print(f"  ✅ Firestore: {dist_result['groups_written']} Gruppen | "
-          f"{dist_result['transactions_analyzed']} Transaktionen analysiert")
-
-    # ── Abschluss ─────────────────────────────────────────────────────────────
-    print("\n" + "=" * 70)
-    print("  ✅ MODUS A ABGESCHLOSSEN")
-    print(f"  Transaktionen total        : {len(categorized)}")
-    print(f"  Firestore patterns_db      : {fs_result['total_patterns']}")
-    print(f"  Firestore distributions_db : {fs_result['distributions']}")
-    print(f"  Firestore forecast_dist.   : {dist_result['groups_written']} Gruppen")
-    print(f"  Abgeschlossen              : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 70)
+    print(f"\n{SEP}")
+    print(f"  PIPELINE ABGESCHLOSSEN  ✅")
+    print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(SEP)
+    for name, elapsed in timings:
+        print(f"  {'✅':<4} {name:<28}  {elapsed:>6.1f}s")
+    print(SEP_THIN)
+    print(f"  {'Gesamt':<32}  {total:>6.1f}s")
+    print(SEP)
 
 
 if __name__ == "__main__":
