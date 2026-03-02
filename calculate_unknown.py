@@ -584,7 +584,24 @@ def _safe_doc_id(raw: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_\-]", "_", raw)[:200]
 
 
+def _clear_collection(db, collection: str) -> int:
+    """Löscht alle Dokumente vor dem Neu-Schreiben → kein Datenmix aus alten Runs."""
+    col_ref = db.collection(collection)
+    deleted = 0
+    while True:
+        docs = list(col_ref.limit(400).stream())
+        if not docs:
+            break
+        batch = db.batch()
+        for doc in docs:
+            batch.delete(doc.reference)
+        batch.commit()
+        deleted += len(docs)
+    return deleted
+
+
 def _write_to_firestore(db, documents: list[dict]) -> int:
+    _clear_collection(db, TARGET_COLLECTION)   # ← erst leeren, dann neu schreiben
     ref     = db.collection(TARGET_COLLECTION)
     written = 0
     for doc in documents:
