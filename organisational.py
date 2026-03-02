@@ -128,6 +128,28 @@ def _tx_to_standalone_doc(tx: dict) -> tuple[str, dict]:
 # FIRESTORE-OPERATIONEN
 # ─────────────────────────────────────────────
 
+def clear_collection(db: firestore.Client, collection: str) -> int:
+    """
+    Löscht ALLE Dokumente einer Collection vor dem Neu-Schreiben.
+    Verhindert dass veraltete Dokumente aus früheren Runs auftauchen
+    und historische Daten im Frontend verfälschen.
+    Batched Deletes à 400 Ops.
+    """
+    col_ref = db.collection(collection)
+    deleted = 0
+    while True:
+        docs = list(col_ref.limit(400).stream())
+        if not docs:
+            break
+        batch = db.batch()
+        for doc in docs:
+            batch.delete(doc.reference)
+        batch.commit()
+        deleted += len(docs)
+    print(f"  🗑️   {collection}: {deleted} alte Dokumente gelöscht")
+    return deleted
+
+
 def store_patterns(
     db: firestore.Client,
     patterns: list[dict],
@@ -251,21 +273,27 @@ def main():
         print("    • Firestore API im Google Cloud Projekt nicht aktiviert")
         raise SystemExit(1)
 
-    # ── 4. patterns_db befüllen ───────────────────────────────────
+    # ── 4. Collections leeren → kein Datenmix aus alten Runs ─────
+    print(f"{'─' * 70}")
+    print("  Collections leeren ...")
+    clear_collection(db, COLLECTION_PATTERNS)
+    clear_collection(db, COLLECTION_DISTRIBUTIONS)
+
+    # ── 5. patterns_db befüllen ───────────────────────────────────
     print(f"{'─' * 70}")
     print(f"  PATTERNS  →  {COLLECTION_PATTERNS}  ({len(all_patterns)} Dokumente)")
     print(f"{'─' * 70}")
 
     patterns_written = store_patterns(db, all_patterns, COLLECTION_PATTERNS)
 
-    # ── 5. distributions_db befüllen ─────────────────────────────
+    # ── 6. distributions_db befüllen ─────────────────────────────
     print(f"\n{'─' * 70}")
     print(f"  OHNE MUSTER  →  {COLLECTION_DISTRIBUTIONS}  ({len(no_pat)} Dokumente)")
     print(f"{'─' * 70}")
 
     dist_written = store_distributions(db, no_pat, COLLECTION_DISTRIBUTIONS)
 
-    # ── 6. Abschlussbericht ───────────────────────────────────────
+    # ── 7. Abschlussbericht ───────────────────────────────────────
     print(f"\n{SEP}")
     print(f"  ABSCHLUSS")
     print(SEP)
