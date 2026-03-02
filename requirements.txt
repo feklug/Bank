@@ -1,0 +1,3 @@
+anthropic
+firebase-admin
+google-cloud-firestore
