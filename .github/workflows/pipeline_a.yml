@@ -7,10 +7,14 @@ on:
         description: "Input-Datei (relativ zum Repo-Root)"
         required: false
         default: "tink_demo_transactions.json"
-      output_dir:
-        description: "Ausgabeverzeichnis"
+      silent_mode:
+        description: "Datenschutz: Outputs + Logs unterdrücken"
         required: false
-        default: "."
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
 
 jobs:
   pipeline:
@@ -40,28 +44,9 @@ jobs:
           ANTHROPIC_API_KEY:              ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/serviceaccount.json
           INPUT_FILE:                     ${{ github.event.inputs.input_file }}
-          OUTPUT_DIR:                     ${{ github.event.inputs.output_dir }}
+          SILENT_MODE:                    ${{ github.event.inputs.silent_mode }}
         run: python pipeline.py
 
-      - name: "⑥ Outputs als Artifact speichern"
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pipeline-outputs
-          path: |
-            tink_categorized.json
-            tink_patterns.json
-          retention-days: 30
-
-      - name: "⑦ Outputs committen"
-        if: success()
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tink_categorized.json tink_patterns.json
-          git diff --cached --quiet || git commit -m "ci: pipeline-a output [skip ci]"
-          git push
-
-      - name: "⑧ Credentials aufräumen"
+      - name: "⑥ Credentials aufräumen"
         if: always()
         run: rm -f /tmp/serviceaccount.json
