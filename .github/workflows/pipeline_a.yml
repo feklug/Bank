@@ -1,0 +1,75 @@
+name: Pipeline A · Vollständiger Analyse-Workflow
+
+# ── NUR manuell triggerbar ────────────────────────────────────────
+on:
+  workflow_dispatch:
+    inputs:
+      input_file:
+        description: "Input-Datei (relativ zum Repo-Root)"
+        required: false
+        default: "data/tink_demo_transactions.json"
+      output_dir:
+        description: "Ausgabeverzeichnis"
+        required: false
+        default: "data"
+
+jobs:
+  pipeline:
+    name: "Kategorisierung → Muster → Firestore → Prognose"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # ── 1. Repo auschecken ──────────────────────────────────────
+      - name: "① Checkout"
+        uses: actions/checkout@v4
+
+      # ── 2. Python einrichten ────────────────────────────────────
+      - name: "② Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Abhängigkeiten installieren ──────────────────────────
+      - name: "③ Dependencies installieren"
+        run: pip install anthropic firebase-admin
+
+      # ── 4. Firebase Service Account schreiben ───────────────────
+      - name: "④ Firebase Credentials schreiben"
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/serviceaccount.json
+
+      # ── 5. Pipeline ausführen ────────────────────────────────────
+      - name: "⑤ Pipeline ausführen"
+        env:
+          ANTHROPIC_API_KEY:             ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/serviceaccount.json
+          INPUT_FILE:                    ${{ github.event.inputs.input_file }}
+          OUTPUT_DIR:                    ${{ github.event.inputs.output_dir }}
+        run: python scripts/pipeline.py
+
+      # ── 6. Zwischen-Outputs als Artifact sichern ─────────────────
+      - name: "⑥ Outputs als Artifact speichern"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-outputs
+          path: |
+            data/tink_categorized.json
+            data/tink_patterns.json
+          retention-days: 30
+
+      # ── 7. Outputs ins Repo committen ────────────────────────────
+      - name: "⑦ Outputs committen"
+        if: success()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/tink_categorized.json data/tink_patterns.json
+          git diff --cached --quiet || git commit -m "ci: pipeline-a output [skip ci]"
+          git push
+
+      # ── 8. Credentials aufräumen ─────────────────────────────────
+      - name: "⑧ Credentials aufräumen"
+        if: always()
+        run: rm -f /tmp/serviceaccount.json
