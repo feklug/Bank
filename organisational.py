@@ -1,767 +1,291 @@
 """
 organisational.py
 =================
-Organisiert Pattern-Ergebnisse aus detect_patterns.py und speichert sie in Firestore.
+Liest die Analyse-Ergebnisse von detect_patterns.py (tink_patterns.json)
+und speichert sie in Firestore.
 
-DESIGN-PRINZIPIEN:
-  1. Anomalien werden NICHT gespeichert – ihre Transaktionen sind bereits
-     in anderen Patterns (recurring, batch etc.) oder in distributions_db
-  2. Jedes Pattern-Dokument hat ein next_expected_date (für Frontend/Forecast)
-  3. Einmalige Batches gehen in distributions_db, wiederkehrende in pattern_db
-  4. Alle Schreibvorgänge sind idempotent (gleicher Lauf = gleiche Dokument-IDs)
+Sammlungen:
+  patterns_db      – Jedes erkannte Muster als eigenes Dokument (inkl. aller
+                     zugehörigen Transaktionen als eingebettetes Array).
+  distributions_db – Jede Transaktion OHNE Muster als eigenes Dokument.
 
-FIRESTORE-STRUKTUR:
-  pattern_db/
-    {pattern_id}/
-      pattern_type        : "recurring" | "batch" | "seasonal" | "sequential" | "counter"
-      gegenpartei         : Gegenparteiname
-      category            : Kategorie
-      iban                : IBAN (wenn vorhanden)
-      next_expected_date  : Datum+Zeit der nächsten erwarteten Transaktion  ← IMMER vorhanden
-      transaction_count   : Anzahl Transaktionen
-      first_seen          : Frühestes Datum
-      last_seen           : Spätestes Datum
-      amount_avg          : Durchschnitt aller Beträge
-      amount_sum          : Summe aller Beträge
-      ...                 : Pattern-spezifische Felder
-      created_at / updated_at
+Konfiguration via Env-Variablen:
+  INPUT_FILE                    Pfad zur patterns JSON (default: tink_patterns.json)
+  GOOGLE_APPLICATION_CREDENTIALS Pfad zur Firebase Service Account JSON
 
-      transactions/
-        {txn_id}/         : Einzelne Transaktion (inkl. bookedDateTime)
+Aufruf lokal:
+  export GOOGLE_APPLICATION_CREDENTIALS=/pfad/zu/serviceaccount.json
+  python3 scripts/organisational.py
 
-  distributions_db/
-    {txn_id}/             : Transaktionen ohne Pattern (inkl. bookedDateTime)
+Aufruf GitHub Actions:
+  Wird automatisch von organisational.yml konfiguriert.
 
-PATTERN-PRIORITÄT (Anomalie absichtlich ausgelassen):
-  1. recurring   → zuverlässigstes Pattern
-  2. batch       → nur wenn wiederkehrend (sonst distributions_db)
-  3. seasonal
-  4. sequential
-  5. counter
-
-VERWENDUNG:
-  Als Modul:
-    from organisational import save_to_firestore
-    save_to_firestore(result)
-
-  Direkttest:
-    python organisational.py
-    python organisational.py meine_daten.json
-    python organisational.py daten.json service_account.json
+Voraussetzungen:
+  pip install google-cloud-firestore
 """
 
-import json
-import re
 import hashlib
-import sys
+import json
 import os
-import statistics
-from datetime import datetime, timezone, timedelta
-from collections import defaultdict
-from typing import Optional
-from calendar import monthrange
-from datetime import date
-from dateutil.relativedelta import relativedelta
+import sys
+from datetime import datetime
+from typing import Any
 
-import firebase_admin
-from firebase_admin import credentials, firestore
+from google.cloud import firestore
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# KONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────
+# KONFIGURATION  (Env-Variablen überschreiben Defaults)
+# ─────────────────────────────────────────────
 
-SERVICE_ACCOUNT_FILE     = "bank-417a7-firebase-adminsdk-fbsvc-60ba2be615.json"
-COLLECTION_PATTERNS      = "pattern_db"
+INPUT_FILE               = os.environ.get("INPUT_FILE",  "tink_patterns.json")
+COLLECTION_PATTERNS      = "patterns_db"
 COLLECTION_DISTRIBUTIONS = "distributions_db"
-FIRESTORE_BATCH_LIMIT    = 400
-
-# Anomalie ist bewusst nicht enthalten:
-# Anomalie-Transaktionen sind bereits in anderen Patterns oder distributions_db
-PATTERN_PRIORITY = ["recurring", "batch", "seasonal", "sequential", "counter"]
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# LOGGING
-# ═══════════════════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────
+# DATEN LADEN
+# ─────────────────────────────────────────────
 
-def _log(msg: str):
-    print(msg)
+def load_patterns(path: str) -> dict:
+    """
+    Lädt tink_patterns.json (Output von detect_patterns.py).
 
-
-def _log_section(title: str):
-    print(f"\n{'═' * 70}")
-    print(f"  {title}")
-    print(f"{'═' * 70}")
-
-
-def _log_subsection(title: str):
-    print(f"\n  {'─' * 60}")
-    print(f"  {title}")
-    print(f"  {'─' * 60}")
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SCHWEIZER FEIERTAGSKALENDER
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _easter(year: int) -> date:
-    a = year % 19
-    b = year // 100
-    c = year % 100
-    d = b // 4
-    e = b % 4
-    f = (b + 8) // 25
-    g = (b - f + 1) // 3
-    h = (19 * a + b - d - g + 15) % 30
-    i = c // 4
-    k = c % 4
-    ll = (32 + 2 * e + 2 * i - h - k) % 7
-    m = (a + 11 * h + 22 * ll) // 451
-    month = (h + ll - 7 * m + 114) // 31
-    day = ((h + ll - 7 * m + 114) % 31) + 1
-    return date(year, month, day)
-
-
-def get_swiss_holidays_zh(year: int) -> set:
-    easter = _easter(year)
-    return {
-        date(year, 1,  1),
-        date(year, 1,  2),                       # Berchtoldstag (ZH)
-        easter - timedelta(days=2),              # Karfreitag
-        easter + timedelta(days=1),              # Ostermontag
-        date(year, 5,  1),                       # Tag der Arbeit (ZH)
-        easter + timedelta(days=39),             # Auffahrt
-        easter + timedelta(days=50),             # Pfingstmontag
-        date(year, 8,  1),                       # Nationalfeiertag
-        date(year, 12, 25),                      # Weihnachten
-        date(year, 12, 26),                      # Stephanstag (ZH)
+    Erwartet die Struktur:
+    {
+      "meta":       { ... },
+      "summary":    { ... },
+      "recurring":  [ { ...pattern, "transactions": [...] } ],
+      "seasonal":   [ ... ],
+      "sequential": [ ... ],
+      "no_pattern": [ { ...transaktion } ]
     }
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
-_holidays_cache: dict = {}
-
-
-def _next_banking_day(d: date) -> date:
-    current = d
-    while True:
-        year = current.year
-        if year not in _holidays_cache:
-            _holidays_cache[year] = get_swiss_holidays_zh(year)
-        if current.weekday() < 5 and current not in _holidays_cache[year]:
-            return current
-        current += timedelta(days=1)
-
-
-def _at_next_workday(d: datetime) -> datetime:
-    """Verschiebt auf nächsten Schweizer Bankarbeitstag (Sa/So/Feiertag → nächster)."""
-    d_date = _next_banking_day(d.date())
-    return d.replace(year=d_date.year, month=d_date.month, day=d_date.day)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# FIRESTORE INITIALISIERUNG
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _init_firestore(service_account: str) -> firestore.Client:
-    if not os.path.exists(service_account):
-        raise FileNotFoundError(
-            f"Service-Account nicht gefunden: {service_account}\n"
-            f"Bitte sicherstellen dass die Datei im gleichen Ordner liegt."
-        )
-    try:
-        firebase_admin.get_app()
-        _log(f"  ℹ️  Firebase bereits initialisiert – verwende bestehende App")
-    except ValueError:
-        cred = credentials.Certificate(service_account)
-        firebase_admin.initialize_app(cred)
-        _log(f"  ✅ Firebase initialisiert mit: {service_account}")
-    return firestore.client()
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────
 # HILFSFUNKTIONEN
-# ═══════════════════════════════════════════════════════════════════════════════
+# ─────────────────────────────────────────────
 
-def _get_iban(txn: dict) -> Optional[str]:
-    for field in ["iban", "iban_gegenpartei", "counterparty_iban", "empfaenger_iban"]:
-        val = txn.get(field)
-        if val and str(val).strip():
-            return str(val).strip()
-    return None
-
-
-def _norm_key(name: str, category: str, iban: Optional[str] = None) -> str:
-    if iban and iban.strip():
-        iban_clean = re.sub(r"\s+", "", iban.strip().upper())
-        if len(iban_clean) >= 15:
-            return iban_clean + "|" + (category or "UNBEKANNT")
-    generic = ["", "bank", "system", "intern", "unbekannt", "unbekannte gegenpartei",
-               "eigene buchung", "intern transfer"]
-    if not name or name.strip().lower() in generic:
-        return "SYSTEM|" + (category or "UNBEKANNT")
-    n = name.lower()
-    for src, dst in [("ä","ae"),("ö","oe"),("ü","ue"),("ß","ss")]:
-        n = n.replace(src, dst)
-    n = re.sub(r"[^a-z0-9\s]", "", n)
-    return "_".join(n.split()) + "|" + (category or "UNBEKANNT")
-
-
-def _parse_date(s: str) -> datetime:
-    return datetime.strptime(s, "%Y-%m-%d")
-
-
-def _primary_pattern_type(p: dict) -> Optional[str]:
+def _clean(obj: Any) -> Any:
     """
-    Gibt den primären Pattern-Typ zurück.
-    Anomalie wird bewusst NICHT zurückgegeben – Anomalie-Transaktionen
-    landen entweder in einem anderen Pattern oder in distributions_db.
+    Bereitet ein beliebiges Python-Objekt für Firestore vor:
+      - None      → None  (Firestore speichert als null)
+      - dict/list → rekursiv bereinigt
+      - Schlüssel mit "_" am Anfang → werden übersprungen (interne Felder)
     """
-    for ptype in PATTERN_PRIORITY:
-        if p.get(f"is_{ptype}"):
-            return ptype
-    return None
+    if isinstance(obj, dict):
+        return {
+            k: _clean(v)
+            for k, v in obj.items()
+            if not k.startswith("_")
+        }
+    if isinstance(obj, list):
+        return [_clean(i) for i in obj]
+    return obj
 
 
-def _pattern_group_key(txn: dict, ptype: str) -> str:
+def _make_doc_id(seed: str) -> str:
+    """Erzeugt eine stabile, eindeutige Dokument-ID aus einem Seed-String."""
+    return hashlib.sha1(seed.encode()).hexdigest()[:20]
+
+
+def _pattern_to_doc(pattern: dict, pattern_index: int) -> tuple[str, dict]:
     """
-    Gruppierschlüssel für Pattern-Dokumente.
-
-    Batch-Besonderheit: Wir gruppieren NICHT nach batch_id (die enthält das Datum
-    und würde jeden Monat ein neues Dokument erzeugen), sondern nach
-    Kategorie + Zahlungsrichtung.
+    Wandelt ein Pattern-Dict in (doc_id, firestore_doc) um.
+    Die Transaktionen liegen bereits sauber als Array 'transactions' vor
+    (so wie detect_patterns.py sie exportiert hat).
     """
-    p   = txn.get("pattern", {})
-    cat = txn.get("category_level1", "")
+    transactions = pattern.get("transactions", [])
 
-    if ptype == "batch":
-        direction = "ausgabe" if txn.get("betrag", 0) < 0 else "einnahme"
-        cat_slug  = re.sub(r"[^a-z]", "_", cat.lower().split("–")[-1].strip())[:20]
-        return f"batch|{cat_slug}|{direction}"
-
-    if ptype == "sequential":
-        trigger_id = p.get("sequential_trigger_txn_id", "unknown")
-        cat_a      = p.get("sequential_trigger_category", "")
-        cat_b      = p.get("sequential_follows_category", "")
-        return f"sequential|trigger_{trigger_id}|{cat_a}→{cat_b}"
-
-    if ptype == "counter":
-        cat_trigger = p.get("counter_trigger_category", "")
-        cat_result  = p.get("counter_result_category", "")
-        return f"counter|{cat_trigger}→{cat_result}"
-
-    # recurring, seasonal → nach Gegenpartei+Kategorie+IBAN
-    key = _norm_key(txn.get("gegenpartei",""), cat, _get_iban(txn))
-    return f"{ptype}|{key}"
-
-
-def _pattern_doc_id(group_key: str) -> str:
-    slug  = re.sub(r"[^a-zA-Z0-9_\-]", "_", group_key)
-    slug  = re.sub(r"_+", "_", slug).strip("_")[:60]
-    hash8 = hashlib.md5(group_key.encode()).hexdigest()[:8]
-    return f"{slug}_{hash8}"
-
-
-def _txn_doc_id(txn: dict) -> str:
-    """
-    Eindeutige Dokument-ID für eine Transaktion.
-    Verwendet bookedDateTime für Eindeutigkeit auf Sekunden-Ebene –
-    verhindert Kollisionen bei mehreren Buchungen am gleichen Tag.
-    """
-    datum      = txn.get("datum", "0000-00-00").replace("-", "")
-    betrag     = int(abs(txn.get("betrag", 0)) * 100)
-    vorzeichen = "p" if txn.get("betrag", 0) >= 0 else "n"
-    gp         = txn.get("gegenpartei", "")
-    gp_slug    = re.sub(r"[^a-z0-9]", "_", gp.lower())
-    gp_slug    = re.sub(r"_+", "_", gp_slug).strip("_")[:25]
-
-    # bookedDateTime als Sekundenkomponente einbauen (falls vorhanden)
-    bdt     = txn.get("bookedDateTime", "")
-    bdt_part = ""
-    if bdt and len(bdt) >= 19:
-        # "2024-01-05T08:23:41Z" → "082341"
-        time_raw = bdt[11:19].replace(":", "")
-        bdt_part = f"_{time_raw}"
-
-    raw    = f"{datum}|{vorzeichen}{betrag}|{bdt}{txn.get('verwendungszweck','')[:50]}"
-    hash6  = hashlib.md5(raw.encode()).hexdigest()[:6]
-    return f"{datum}{bdt_part}_{vorzeichen}{betrag}_{gp_slug}_{hash6}"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# NEXT_EXPECTED_DATE – FÜR ALLE PATTERN-TYPEN
-# Das Frontend kann dieses Feld direkt für den Forecast verwenden.
-# Bei recurring: kommt bereits als Datetime-String aus detect_patterns (inkl. Uhrzeit).
-# Bei anderen Typen: reines Datum (keine Uhrzeit-Daten verfügbar).
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _next_expected_for_pattern(ptype: str, p: dict, group_txns: list) -> Optional[str]:
-    """
-    Berechnet next_expected_date für jeden Pattern-Typ.
-
-    recurring:
-      → bereits von detect_patterns berechnet (inkl. Uhrzeit wenn verfügbar), direkt übernehmen
-
-    batch (recurring):
-      → Abstände zwischen den Batch-Daten berechnen,
-        letztes Datum + Durchschnittsabstand
-
-    seasonal:
-      → Nächste Jahreszyklus-Instanz der seasonal_months
-
-    sequential:
-      → Letztes Trigger-Datum + avg_delay_hours / 24
-
-    counter:
-      → Letztes Datum + counter_avg_delay_hours / 24
-    """
-    dates = sorted([_parse_date(t["datum"]) for t in group_txns])
-    if not dates:
-        return None
-
-    last = dates[-1]
-
-    # ── recurring: detect_patterns hat es bereits berechnet ──────────────────
-    # Enthält Uhrzeit wenn time_data_available=True (z.B. "2024-03-05T08:30:00")
-    if ptype == "recurring":
-        return p.get("next_expected_date")
-
-    # ── batch: Abstände zwischen Batch-Daten berechnen ───────────────────────
-    if ptype == "batch":
-        if len(dates) < 2:
-            return None   # Einmaliger Batch → wird in distributions_db landen
-        gaps    = [(dates[i+1] - dates[i]).days for i in range(len(dates) - 1)]
-        avg_gap = statistics.mean(gaps)
-        nxt     = last + timedelta(days=round(avg_gap))
-        return _at_next_workday(nxt).strftime("%Y-%m-%d")
-
-    # ── seasonal: nächste Instanz der saisonalen Monate ──────────────────────
-    if ptype == "seasonal":
-        seasonal_months = p.get("seasonal_months", [])
-        if not seasonal_months:
-            return None
-        today = datetime.now()
-        for offset in range(0, 24):
-            check = today + relativedelta(months=offset)
-            if check.month in seasonal_months and check > last:
-                dom_avg = round(statistics.mean([d.day for d in dates]))
-                try:
-                    nxt = check.replace(day=dom_avg)
-                except ValueError:
-                    nxt = check + relativedelta(day=31)
-                if nxt > today:
-                    return _at_next_workday(nxt).strftime("%Y-%m-%d")
-        return None
-
-    # ── sequential: letztes Trigger-Datum + avg_delay ────────────────────────
-    if ptype == "sequential":
-        avg_delay_h = p.get("sequential_avg_delay_hours")
-        if avg_delay_h is None:
-            return None
-        nxt = last + timedelta(hours=avg_delay_h)
-        return _at_next_workday(nxt).strftime("%Y-%m-%d")
-
-    # ── counter: letztes Datum + avg_delay ───────────────────────────────────
-    if ptype == "counter":
-        avg_delay_h = p.get("counter_avg_delay_hours")
-        if avg_delay_h is None:
-            return None
-        nxt = last + timedelta(hours=avg_delay_h)
-        return _at_next_workday(nxt).strftime("%Y-%m-%d")
-
-    return None
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PATTERN-METADATEN
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _extract_pattern_meta(txn: dict, ptype: str, group_txns: list) -> dict:
-    """
-    Baut das vollständige Metadaten-Dict für ein Pattern-Dokument.
-    next_expected_date ist immer enthalten (None wenn nicht berechenbar).
-    Bei recurring-Patterns enthält next_expected_date die Uhrzeit (von detect_patterns).
-    """
-    p       = txn.get("pattern", {})
-    amounts = [t.get("betrag", 0) for t in group_txns]
-    dates   = sorted([t.get("datum", "") for t in group_txns])
-    ned     = _next_expected_for_pattern(ptype, p, group_txns)
-
-    meta = {
-        # ── Basis ────────────────────────────────────────────────────────────
-        "pattern_type":      ptype,
-        "pattern_key":       _norm_key(
-            txn.get("gegenpartei",""),
-            txn.get("category_level1",""),
-            _get_iban(txn)
-        ),
-        "gegenpartei":       txn.get("gegenpartei",""),
-        "category":          txn.get("category_level1",""),
-        "iban":              _get_iban(txn),
-
-        # ── next_expected_date: bei recurring inkl. Uhrzeit wenn verfügbar ──
-        "next_expected_date": ned,
-
-        # ── Aggregierte Statistiken ───────────────────────────────────────────
-        "transaction_count": len(group_txns),
-        "first_seen":        dates[0]  if dates else None,
-        "last_seen":         dates[-1] if dates else None,
-        "amount_sum":        round(sum(amounts), 2),
-        "amount_avg":        round(sum(amounts) / len(amounts), 2) if amounts else 0.0,
-        "amount_min":        round(min(amounts), 2) if amounts else 0.0,
-        "amount_max":        round(max(amounts), 2) if amounts else 0.0,
+    doc = {
+        **_clean({k: v for k, v in pattern.items() if k != "transactions"}),
+        "transactions":      transactions,
+        "transaction_count": len(transactions),
+        "stored_at":         datetime.utcnow().isoformat() + "Z",
     }
 
-    # ── Pattern-spezifische Felder ────────────────────────────────────────────
-    if ptype == "recurring":
-        meta.update({
-            "recurrence_interval":         p.get("recurrence_interval"),
-            "recurrence_day_of_month":     p.get("recurrence_day_of_month"),
-            "recurrence_day_of_week":      p.get("recurrence_day_of_week"),
-            "recurrence_amount_avg":       p.get("recurrence_amount_avg"),
-            "recurrence_amount_tolerance": p.get("recurrence_amount_tolerance"),
-            "recurrence_confidence":       p.get("recurrence_confidence"),
-            "recurrence_sample_size":      p.get("recurrence_sample_size"),
-            "recurrence_has_gaps":         p.get("recurrence_has_gaps"),
-            # Uhrzeit-Felder direkt aus detect_patterns übernehmen
-            "avg_booking_hour":            p.get("avg_booking_hour"),
-            "booking_hour_std":            p.get("booking_hour_std"),
-            "next_expected_time":          p.get("next_expected_time"),
-            "next_expected_datetime":      p.get("next_expected_datetime"),
-            "time_data_available":         p.get("time_data_available", False),
-        })
+    first_datum = transactions[0]["datum"] if transactions else str(pattern_index)
+    id_seed     = f"{pattern.get('pattern_type', '')}|{pattern.get('gegenpartei', '')}|{first_datum}"
+    doc_id      = _make_doc_id(id_seed)
 
-    elif ptype == "batch":
-        meta.update({
-            "batch_size":         p.get("batch_size"),
-            "batch_total":        p.get("batch_total"),
-            "batch_confidence":   p.get("batch_confidence"),
-            "batch_anomaly_type": p.get("batch_anomaly_type"),
-            "batch_occurrence_count": len(dates),
-        })
-        parsed_dates = sorted([_parse_date(d) for d in dates])
-        if len(parsed_dates) >= 2:
-            gaps    = [(parsed_dates[i+1] - parsed_dates[i]).days
-                       for i in range(len(parsed_dates) - 1)]
-            avg_gap = statistics.mean(gaps)
-            if   17 <= avg_gap <= 45:  meta["batch_recurrence_interval"] = "monthly"
-            elif 76 <= avg_gap <= 105: meta["batch_recurrence_interval"] = "quarterly"
-            elif  8 <= avg_gap <= 16:  meta["batch_recurrence_interval"] = "biweekly"
-            elif  1 <= avg_gap <= 8:   meta["batch_recurrence_interval"] = "weekly"
-            else:                      meta["batch_recurrence_interval"] = "irregular"
-
-    elif ptype == "seasonal":
-        meta.update({
-            "seasonal_months":         p.get("seasonal_months"),
-            "seasonal_week_of_year":   p.get("seasonal_week_of_year"),
-            "seasonal_amount_avg":     p.get("seasonal_amount_avg"),
-            "seasonal_confidence":     p.get("seasonal_confidence"),
-            "seasonal_years_observed": p.get("seasonal_years_observed"),
-            # Uhrzeit-Felder aus detect_patterns übernehmen falls vorhanden
-            "avg_booking_hour":        p.get("avg_booking_hour"),
-            "next_expected_time":      p.get("next_expected_time"),
-            "next_expected_datetime":  p.get("next_expected_datetime"),
-            "time_data_available":     p.get("time_data_available", False),
-        })
-
-    elif ptype == "sequential":
-        meta.update({
-            "sequential_trigger_category":      p.get("sequential_trigger_category"),
-            "sequential_follows_category":      p.get("sequential_follows_category"),
-            "sequential_avg_delay_hours":       p.get("sequential_avg_delay_hours"),
-            "sequential_delay_tolerance_hours": p.get("sequential_delay_tolerance_hours"),
-            "sequential_amount_ratio":          p.get("sequential_amount_ratio"),
-            "sequential_confidence":            p.get("sequential_confidence"),
-            "sequential_observations":          p.get("sequential_observations"),
-            # Uhrzeit-Felder aus detect_patterns übernehmen
-            "trigger_avg_booking_hour":         p.get("trigger_avg_booking_hour"),
-            "trigger_next_expected_time":       p.get("trigger_next_expected_time"),
-            "follow_avg_booking_hour":          p.get("follow_avg_booking_hour"),
-            "follow_next_expected_time":        p.get("follow_next_expected_time"),
-            "next_expected_datetime":           p.get("next_expected_datetime"),
-            "time_data_available":              p.get("time_data_available", False),
-        })
-
-    elif ptype == "counter":
-        meta.update({
-            "counter_trigger_category":      p.get("counter_trigger_category"),
-            "counter_result_category":       p.get("counter_result_category"),
-            "counter_avg_delay_hours":       p.get("counter_avg_delay_hours"),
-            "counter_delay_tolerance_hours": p.get("counter_delay_tolerance_hours"),
-            "counter_amount_ratio":          p.get("counter_amount_ratio"),
-            "counter_confidence":            p.get("counter_confidence"),
-            "counter_observations":          p.get("counter_observations"),
-        })
-
-    return meta
+    return doc_id, doc
 
 
-def _txn_to_dict(txn: dict, pattern_type: Optional[str], pattern_doc_id: Optional[str]) -> dict:
+def _tx_to_standalone_doc(tx: dict) -> tuple[str, dict]:
+    """Wandelt eine Transaktion ohne Muster in (doc_id, firestore_doc) um."""
+    doc = {
+        **_clean(tx),
+        "stored_at": datetime.utcnow().isoformat() + "Z",
+    }
+    id_seed = f"{tx.get('datum','')}|{tx.get('betrag','')}|{tx.get('gegenpartei','')}"
+    doc_id  = _make_doc_id(id_seed)
+    return doc_id, doc
+
+
+# ─────────────────────────────────────────────
+# FIRESTORE-OPERATIONEN
+# ─────────────────────────────────────────────
+
+def store_patterns(
+    db: firestore.Client,
+    patterns: list[dict],
+    collection: str,
+) -> int:
     """
-    Bereitet eine Transaktion für Firestore vor.
-    Alle Originalfelder werden übernommen, bookedDateTime explizit gesichert.
+    Schreibt alle Patterns in die angegebene Sammlung.
+    set() mit merge=False → überschreibt bei gleichem doc_id.
     """
-    d = {k: v for k, v in txn.items() if k != "pattern"}
-    # Pflichtfelder mit Defaults absichern
-    d.setdefault("datum",            None)
-    d.setdefault("bookedDateTime",   None)   # Zeit explizit sichern
-    d.setdefault("betrag",           None)
-    d.setdefault("gegenpartei",      None)
-    d.setdefault("verwendungszweck", None)
-    d.setdefault("category_level1",  None)
+    col_ref = db.collection(collection)
+    written = 0
 
-    iban = _get_iban(txn)
-    if iban:
-        d["iban_normalized"] = re.sub(r"\s+", "", iban.upper())
+    for i, pattern in enumerate(patterns):
+        doc_id, doc = _pattern_to_doc(pattern, i)
+        try:
+            col_ref.document(doc_id).set(doc)
+            pt    = pattern.get("pattern_type", "?")
+            name  = pattern.get("sequence_name") or pattern.get("gegenpartei", "?")
+            n_txs = len(pattern.get("transactions", []))
+            print(f"    ✅  [{pt}]  {name[:45]:<45}  {n_txs:>3} Tx  →  {collection}/{doc_id}")
+            written += 1
+        except Exception as e:
+            print(f"    ❌  Fehler bei Pattern #{i}: {e}")
 
-    d["pattern_type"]   = pattern_type
-    d["pattern_doc_id"] = pattern_doc_id
-    d["saved_at"]       = datetime.now(timezone.utc).isoformat()
-    return d
+    return written
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# GRUPPIERUNG
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _group_transactions(transactions: list) -> tuple:
+def store_distributions(
+    db: firestore.Client,
+    transactions: list[dict],
+    collection: str,
+) -> int:
     """
-    Gruppiert Transaktionen nach Pattern-Typ und Gruppierschlüssel.
-
-    Einmalige Batches (nur 1 Datum-Gruppe vorhanden) werden direkt in
-    no_pattern verschoben → distributions_db.
-
-    Anomalien kommen nicht in pattern_groups und landen in no_pattern.
+    Schreibt jede Transaktion ohne Muster als eigenes Dokument.
+    Nutzt Batched Writes (max. 400 Ops pro Batch) für Effizienz.
     """
-    pattern_groups: dict = defaultdict(lambda: {"ptype": None, "txns": []})
-    no_pattern: list     = []
+    col_ref    = db.collection(collection)
+    written    = 0
+    BATCH_SIZE = 400
 
-    for txn in transactions:
-        p     = txn.get("pattern", {})
-        ptype = _primary_pattern_type(p)
-
-        if ptype is None:
-            no_pattern.append(txn)
-            continue
-
-        gkey = _pattern_group_key(txn, ptype)
-        pattern_groups[gkey]["ptype"] = ptype
-        pattern_groups[gkey]["txns"].append(txn)
-
-    # ── Einmalige Batches → distributions_db ─────────────────────────────────
-    final_groups: dict = {}
-    for gkey, group in pattern_groups.items():
-        if group["ptype"] == "batch":
-            unique_dates = set(t["datum"] for t in group["txns"])
-            if len(unique_dates) <= 1:
-                _log(f"  ℹ️  Einmaliger Batch → distributions_db: "
-                     f"{group['txns'][0].get('gegenpartei','')[:30]} "
-                     f"({group['txns'][0].get('datum','')})")
-                no_pattern.extend(group["txns"])
-                continue
-        final_groups[gkey] = group
-
-    return final_groups, no_pattern
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# FIRESTORE SCHREIBEN
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _flush_batch(db: firestore.Client, ops: list):
-    if not ops:
-        return
-    for chunk_start in range(0, len(ops), FIRESTORE_BATCH_LIMIT):
-        chunk = ops[chunk_start: chunk_start + FIRESTORE_BATCH_LIMIT]
+    for batch_start in range(0, len(transactions), BATCH_SIZE):
         batch = db.batch()
-        for ref, data, merge in chunk:
-            batch.set(ref, data, merge=True) if merge else batch.set(ref, data)
-        batch.commit()
+        chunk = transactions[batch_start: batch_start + BATCH_SIZE]
+
+        for tx in chunk:
+            doc_id, doc = _tx_to_standalone_doc(tx)
+            batch.set(col_ref.document(doc_id), doc)
+
+        try:
+            batch.commit()
+            written += len(chunk)
+            end = min(batch_start + BATCH_SIZE, len(transactions))
+            print(f"    ✅  Batch {batch_start + 1:>3}–{end:>3}  →  {collection}  ({len(chunk)} Dokumente)")
+        except Exception as e:
+            print(f"    ❌  Batch-Fehler ({batch_start}–{batch_start + BATCH_SIZE}): {e}")
+
+    return written
 
 
-def _write_patterns(db: firestore.Client, pattern_groups: dict) -> dict:
-    stats          = defaultdict(int)
-    stats["total"] = 0
-    now_ts         = datetime.now(timezone.utc).isoformat()
+# ─────────────────────────────────────────────
+# HAUPT-PIPELINE
+# ─────────────────────────────────────────────
 
-    for group_key, group in pattern_groups.items():
-        ptype      = group["ptype"]
-        group_txns = group["txns"]
-        if not group_txns:
-            continue
+def main():
+    SEP = "=" * 70
 
-        doc_id  = _pattern_doc_id(group_key)
-        doc_ref = db.collection(COLLECTION_PATTERNS).document(doc_id)
-        meta    = _extract_pattern_meta(group_txns[0], ptype, group_txns)
-        meta["updated_at"] = now_ts
-        meta["created_at"] = now_ts   # merge=True: wird nicht überschrieben wenn schon da
+    print(f"\n{SEP}")
+    print("  ORGANISATIONAL  –  Firestore Export")
+    print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(SEP)
+    print(f"  Input  : {INPUT_FILE}")
 
-        ops = [(doc_ref, meta, True)]   # merge=True für Pattern-Dokument
+    # ── 1. Credentials prüfen ─────────────────────────────────────
+    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
+    if not creds_path:
+        print("\n❌  GOOGLE_APPLICATION_CREDENTIALS nicht gesetzt.")
+        print("    Lokal  : export GOOGLE_APPLICATION_CREDENTIALS=/pfad/zu/serviceaccount.json")
+        print("    GitHub : Secret FIREBASE_SERVICE_ACCOUNT wird automatisch gesetzt.")
+        raise SystemExit(1)
 
-        for txn in group_txns:
-            txn_id   = _txn_doc_id(txn)
-            txn_ref  = doc_ref.collection("transactions").document(txn_id)
-            txn_data = _txn_to_dict(txn, ptype, doc_id)
-            ops.append((txn_ref, txn_data, False))
+    if not os.path.exists(creds_path):
+        print(f"\n❌  Service Account Datei nicht gefunden: {creds_path}")
+        raise SystemExit(1)
 
-        _flush_batch(db, ops)
+    # ── 2. Input laden ────────────────────────────────────────────
+    if not os.path.exists(INPUT_FILE):
+        print(f"\n❌  Input-Datei nicht gefunden: {INPUT_FILE}")
+        print("    Zuerst detect_patterns.py ausführen (erzeugt tink_patterns.json).")
+        raise SystemExit(1)
 
-        # Uhrzeit in der Ausgabe anzeigen wenn vorhanden
-        ned_str = ""
-        if meta.get("next_expected_date"):
-            ned_val = meta["next_expected_date"]
-            # Zeigt "T" an wenn Uhrzeit enthalten
-            if "T" in str(ned_val):
-                ned_str = f" → {ned_val}  🕐"
-            else:
-                ned_str = f" → {ned_val}"
+    data = load_patterns(INPUT_FILE)
+    meta = data.get("meta", {})
 
-        _log(f"  ✅ {doc_id[:55]}")
-        _log(f"     {ptype:<12} | {group_txns[0].get('gegenpartei','')[:30]} "
-             f"| {len(group_txns)} Txns{ned_str}")
+    print(f"  Generiert am   : {meta.get('generated_at', '-')}")
 
-        stats[ptype]   += 1
-        stats["total"] += 1
+    # Pattern-Listen aus JSON zusammenführen
+    all_patterns = (
+        data.get("recurring",  []) +
+        data.get("seasonal",   []) +
+        data.get("sequential", [])
+    )
+    no_pat = data.get("no_pattern", [])
 
-    return dict(stats)
+    summary = data.get("summary", {})
+    print(f"\n  RECURRING      : {summary.get('recurring',  0):>4} Muster")
+    print(f"  SEASONAL       : {summary.get('seasonal',   0):>4} Muster")
+    print(f"  SEQUENTIAL     : {summary.get('sequential', 0):>4} Muster")
+    print(f"  Ohne Muster    : {summary.get('no_pattern', 0):>4} Transaktionen")
 
+    # ── 3. Firestore-Client initialisieren ────────────────────────
+    print(f"\n  Verbinde mit Firestore ...")
+    try:
+        db = firestore.Client()
+        db.collection(COLLECTION_PATTERNS).limit(1).get()   # Verbindungstest
+        print(f"  ✅  Verbindung OK\n")
+    except Exception as e:
+        print(f"\n❌  Firestore-Verbindung fehlgeschlagen: {e}")
+        print("\n  Mögliche Ursachen:")
+        print("    • Service Account hat keine Firestore-Berechtigung")
+        print("    • Projekt-ID fehlt (im Service Account JSON enthalten?)")
+        print("    • Firestore API im Google Cloud Projekt nicht aktiviert")
+        raise SystemExit(1)
 
-def _write_distributions(db: firestore.Client, no_pattern: list) -> int:
-    if not no_pattern:
-        return 0
-    ops = []
-    for txn in no_pattern:
-        txn_id   = _txn_doc_id(txn)       # bookedDateTime bereits in ID eingebaut
-        txn_ref  = db.collection(COLLECTION_DISTRIBUTIONS).document(txn_id)
-        txn_data = _txn_to_dict(txn, None, None)
-        txn_data["pattern_type"] = None
-        ops.append((txn_ref, txn_data, False))
-    _flush_batch(db, ops)
-    return len(no_pattern)
+    # ── 4. patterns_db befüllen ───────────────────────────────────
+    print(f"{'─' * 70}")
+    print(f"  PATTERNS  →  {COLLECTION_PATTERNS}  ({len(all_patterns)} Dokumente)")
+    print(f"{'─' * 70}")
 
+    patterns_written = store_patterns(db, all_patterns, COLLECTION_PATTERNS)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# HAUPTFUNKTION
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ── 5. distributions_db befüllen ─────────────────────────────
+    print(f"\n{'─' * 70}")
+    print(f"  OHNE MUSTER  →  {COLLECTION_DISTRIBUTIONS}  ({len(no_pat)} Dokumente)")
+    print(f"{'─' * 70}")
 
-def save_to_firestore(
-    transactions: list,
-    service_account: str = SERVICE_ACCOUNT_FILE,
-) -> dict:
-    """
-    Organisiert und speichert Pattern-Ergebnisse in Firestore.
+    dist_written = store_distributions(db, no_pat, COLLECTION_DISTRIBUTIONS)
 
-    Args:
-        transactions:    Output von detect_patterns() – Liste mit 'pattern'-Feld
-        service_account: Pfad zur Firebase Service-Account JSON
+    # ── 6. Abschlussbericht ───────────────────────────────────────
+    print(f"\n{SEP}")
+    print(f"  ABSCHLUSS")
+    print(SEP)
+    print(f"  {COLLECTION_PATTERNS:<25} {patterns_written:>4} / {len(all_patterns):>4} Dokumente geschrieben")
+    print(f"  {COLLECTION_DISTRIBUTIONS:<25} {dist_written:>4} / {len(no_pat):>4} Dokumente geschrieben")
 
-    Rückgabe:
-        dict: Statistiken (pattern_groups, distributions, total_patterns, total_txns)
-    """
-    _log_section("ORGANISATIONAL – Firestore Speicherung")
-    _log(f"  {len(transactions)} Transaktionen | "
-         f"Ziel: {COLLECTION_PATTERNS} + {COLLECTION_DISTRIBUTIONS}")
-    _log(f"  bookedDateTime wird in Transaktions-IDs und Metadaten gespeichert")
-    _log(f"  Anomalien werden nicht gespeichert (bereits in anderen Patterns/distributions_db)")
+    total_ok  = patterns_written + dist_written
+    total_all = len(all_patterns) + len(no_pat)
+    errors    = total_all - total_ok
 
-    # ── 1. Firestore initialisieren ───────────────────────────────────────────
-    _log_subsection("1/3 | FIRESTORE INITIALISIERUNG")
-    db = _init_firestore(service_account)
+    if errors == 0:
+        print(f"\n  ✅  Alle {total_ok} Dokumente erfolgreich gespeichert.")
+    else:
+        print(f"\n  ⚠️   {errors} Fehler  |  {total_ok}/{total_all} erfolgreich")
 
-    # ── 2. Gruppieren ─────────────────────────────────────────────────────────
-    _log_subsection("2/3 | GRUPPIERUNG")
-    pattern_groups, no_pattern = _group_transactions(transactions)
+    print(f"\n{'─' * 70}")
+    print(f"  Firebase Console:")
+    print(f"    https://console.firebase.google.com")
+    print(f"{'─' * 70}\n")
 
-    type_counts = defaultdict(int)
-    for g in pattern_groups.values():
-        type_counts[g["ptype"]] += 1
-
-    _log(f"\n  Pattern-Gruppen: {len(pattern_groups)}")
-    for ptype in PATTERN_PRIORITY:
-        if type_counts[ptype]:
-            _log(f"    {ptype:<12} : {type_counts[ptype]:>3} Gruppen")
-    _log(f"  Ohne Pattern   : {len(no_pattern)} → distributions_db "
-         f"(inkl. Anomalien + einmalige Batches)")
-
-    # ── 3. Speichern ──────────────────────────────────────────────────────────
-    _log_subsection(f"3/3 | SPEICHERN → {COLLECTION_PATTERNS}")
-    pattern_stats = _write_patterns(db, pattern_groups)
-
-    _log_subsection(f"     SPEICHERN → {COLLECTION_DISTRIBUTIONS}")
-    dist_count = _write_distributions(db, no_pattern)
-    _log(f"  ✅ {dist_count} Dokumente in {COLLECTION_DISTRIBUTIONS}")
-
-    # ── Zusammenfassung ───────────────────────────────────────────────────────
-    total_pattern_docs = pattern_stats.get("total", 0)
-    total_pattern_txns = sum(len(g["txns"]) for g in pattern_groups.values())
-
-    result = {
-        "pattern_groups": dict(type_counts),
-        "distributions":  dist_count,
-        "total_patterns": total_pattern_docs,
-        "total_txns":     total_pattern_txns,
-    }
-
-    _log_section("ERGEBNIS")
-    _log(f"  {'Sammlung':<25}  {'Dokumente':>10}  {'Transaktionen':>15}")
-    _log(f"  {'─'*55}")
-    _log(f"  {COLLECTION_PATTERNS:<25}  {total_pattern_docs:>10}  {total_pattern_txns:>15}")
-    for ptype in PATTERN_PRIORITY:
-        if type_counts[ptype]:
-            txns_in = sum(len(g["txns"]) for g in pattern_groups.values()
-                          if g["ptype"] == ptype)
-            _log(f"    └─ {ptype:<21}  {type_counts[ptype]:>10}  {txns_in:>15}")
-    _log(f"  {COLLECTION_DISTRIBUTIONS:<25}  {dist_count:>10}  {'(1 pro Dokument)':>15}")
-    _log(f"  {'─'*55}")
-    _log(f"  {'Total:':<25}  {total_pattern_docs + dist_count:>10}  "
-         f"{len(transactions):>15}")
-
-    return result
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# DIREKTTEST
-# ═══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    DEFAULT_INPUT   = "tink_categorized.json"
-    INPUT_FILE      = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_INPUT
-    SERVICE_ACCOUNT = sys.argv[2] if len(sys.argv) > 2 else SERVICE_ACCOUNT_FILE
-
-    _log("=" * 70)
-    _log("  organisational.py – Direkttest")
-    _log(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    _log(f"  Eingabe         : {INPUT_FILE}")
-    _log(f"  Service-Account : {SERVICE_ACCOUNT}")
-    _log("=" * 70)
-
-    _log_section("DATEN LADEN + PATTERN DETECTION")
-
-    if not os.path.exists(INPUT_FILE):
-        _log(f"  ❌ Datei nicht gefunden: {INPUT_FILE}")
-        sys.exit(1)
-
-    with open(INPUT_FILE, encoding="utf-8") as f:
-        raw = json.load(f)
-    _log(f"  ✅ {len(raw)} Transaktionen geladen")
-
-    has_patterns = any("pattern" in t for t in raw)
-    if has_patterns:
-        _log(f"  ℹ️  Pattern-Felder vorhanden → Detection überspringen")
-        transactions = raw
-    else:
-        _log(f"  ℹ️  Keine Pattern-Felder → führe detect_patterns aus...")
-        try:
-            from detect_patterns import detect_patterns
-            transactions = detect_patterns(raw)
-        except ImportError:
-            _log(f"  ❌ detect_patterns.py nicht gefunden")
-            sys.exit(1)
-
-    result = save_to_firestore(transactions, service_account=SERVICE_ACCOUNT)
-
-    _log("\n" + "=" * 70)
-    _log("  ✅ organisational.py abgeschlossen")
-    _log(f"  Pattern-Dokumente : {result['total_patterns']}")
-    _log(f"  Distributions     : {result['distributions']}")
-    _log(f"  Abgeschlossen     : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    _log("=" * 70)
+    main()
