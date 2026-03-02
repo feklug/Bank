@@ -197,13 +197,13 @@ def categorize_batch(transactions: list, batch_offset: int) -> list:
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-           response = client.messages.create(
-    model="claude-haiku-4-5-20251001",
-    max_tokens=4096,
-    temperature=0,   # ← diese Zeile hinzufügen
-    system=SYSTEM_PROMPT,
-    messages=[{"role": "user", "content": user_message}],
-)
+            response = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=4096,
+                temperature=0,
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}],
+            )
 
             raw          = response.content[0].text
             results      = extract_json(raw)
