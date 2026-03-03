@@ -1,0 +1,60 @@
+name: Pipeline Simulate
+
+on:
+  workflow_dispatch:
+    inputs:
+      silent_mode:
+        description: "Datenschutz: TX-Daten in Logs unterdrücken"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+  # Zukünftig alle 5 Minuten aktivieren:
+  # schedule:
+  #   - cron: '*/5 * * * *'
+
+jobs:
+  simulate-one-tx:
+    name: "1 TX → Kategorisieren → Pattern → Forecast"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # für simulate_state.json commit
+
+    steps:
+      - name: "① Checkout"
+        uses: actions/checkout@v4
+
+      - name: "② Python 3.11"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "③ Dependencies"
+        run: pip install -r requirements.txt
+
+      - name: "④ Firebase Credentials"
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/serviceaccount.json
+
+      - name: "⑤ Eine TX simulieren"
+        env:
+          ANTHROPIC_API_KEY:              ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/serviceaccount.json
+          INPUT_FILE:                     data/simulate.json
+          SILENT_MODE:                    ${{ github.event.inputs.silent_mode || 'true' }}
+        run: python simulate/pipeline.py
+
+      - name: "⑥ State committen (simulate_state.json)"
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/simulate_state.json
+          git diff --staged --quiet || git commit -m "chore: simulate_state TX $(cat data/simulate_state.json | python3 -c 'import sys,json; s=json.load(sys.stdin); print(str(s[\"next_index\"]) + \"/\" + str(s[\"total\"]))')"
+          git push
+
+      - name: "⑦ Credentials aufräumen"
+        if: always()
+        run: rm -f /tmp/serviceaccount.json
