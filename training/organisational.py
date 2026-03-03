@@ -27,6 +27,7 @@ Voraussetzungen:
 import hashlib
 import json
 import os
+import pathlib
 import sys
 from datetime import datetime
 from typing import Any
@@ -37,7 +38,10 @@ from google.cloud import firestore
 # KONFIGURATION  (Env-Variablen überschreiben Defaults)
 # ─────────────────────────────────────────────
 
-INPUT_FILE               = os.environ.get("INPUT_FILE",  "tink_patterns.json")
+_ROOT = pathlib.Path(__file__).parent        # training/
+_DATA = _ROOT.parent / "data"                # data/
+
+INPUT_FILE               = os.environ.get("INPUT_FILE",  str(_DATA / "tink_patterns.json"))
 COLLECTION_PATTERNS      = "patterns_db"
 COLLECTION_DISTRIBUTIONS = "distributions_db"
 
