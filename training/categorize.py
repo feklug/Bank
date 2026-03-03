@@ -15,8 +15,8 @@ import anthropic
 # KONFIGURATION  (Env-Variablen überschreiben Defaults)
 # ─────────────────────────────────────────────
 
-INPUT_FILE   = os.environ.get("INPUT_FILE",  "tink_demo_transactions.json")
-OUTPUT_FILE  = os.environ.get("OUTPUT_FILE", "tink_categorized.json")
+INPUT_FILE  = os.environ.get("INPUT_FILE",  "../data/training.json")
+OUTPUT_FILE = os.environ.get("OUTPUT_FILE", "../data/tink_categorized.json")
 BATCH_SIZE   = int(os.environ.get("BATCH_SIZE",   "20"))   # Transaktionen pro API-Call
 MAX_RETRIES  = int(os.environ.get("MAX_RETRIES",   "3"))   # Wiederholungen bei API-Fehler
 RETRY_DELAY  = int(os.environ.get("RETRY_DELAY",   "5"))   # Sekunden zwischen Versuchen
