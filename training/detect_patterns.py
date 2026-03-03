@@ -15,6 +15,7 @@ Konfiguration via Env-Variablen:
 
 import json
 import os
+import pathlib
 import sys
 from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
@@ -26,8 +27,11 @@ import re
 # KONFIGURATION  (Env-Variablen überschreiben Defaults)
 # ─────────────────────────────────────────────
 
-INPUT_FILE  = os.environ.get("INPUT_FILE",  "tink_categorized.json")
-OUTPUT_FILE = os.environ.get("OUTPUT_FILE", "tink_patterns.json")
+_ROOT       = pathlib.Path(__file__).parent        # training/
+_DATA       = _ROOT.parent / "data"                # data/
+
+INPUT_FILE  = os.environ.get("INPUT_FILE",  str(_DATA / "tink_categorized.json"))
+OUTPUT_FILE = os.environ.get("OUTPUT_FILE", str(_DATA / "tink_patterns.json"))
 
 
 # ─────────────────────────────────────────────
