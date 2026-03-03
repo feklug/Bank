@@ -1,12 +1,8 @@
-name: Pipeline A · Vollständiger Analyse-Workflow
+name: Pipeline Training
 
 on:
   workflow_dispatch:
     inputs:
-      input_file:
-        description: "Input-Datei (relativ zum Repo-Root)"
-        required: false
-        default: "tink_demo_transactions.json"
       silent_mode:
         description: "Datenschutz: Outputs + Logs unterdrücken"
         required: false
@@ -17,12 +13,12 @@ on:
           - "false"
 
 jobs:
-  pipeline:
+  training:
     name: "Kategorisierung → Muster → Firestore → Prognose"
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: "① Checkout"
@@ -33,19 +29,19 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: "③ Dependencies installieren"
+      - name: "③ Dependencies"
         run: pip install -r requirements.txt
 
-      - name: "④ Firebase Credentials schreiben"
+      - name: "④ Firebase Credentials"
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/serviceaccount.json
 
-      - name: "⑤ Pipeline ausführen"
+      - name: "⑤ Training Pipeline ausführen"
         env:
           ANTHROPIC_API_KEY:              ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/serviceaccount.json
-          INPUT_FILE:                     ${{ github.event.inputs.input_file }}
+          INPUT_FILE:                     data/training.json
           SILENT_MODE:                    ${{ github.event.inputs.silent_mode }}
-        run: python pipeline.py
+        run: python training/pipeline.py
 
       - name: "⑥ Credentials aufräumen"
         if: always()
