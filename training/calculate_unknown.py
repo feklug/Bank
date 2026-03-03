@@ -40,6 +40,7 @@ CLI:
 
 import math
 import os
+import pathlib
 import re
 import sys
 from calendar import monthrange
@@ -61,6 +62,9 @@ CI_90_Z = 1.645
 CI_95_Z = 1.960
 
 RECENCY_DECAY = 0.80
+
+_ROOT = pathlib.Path(__file__).parent        # training/
+_DATA = _ROOT.parent / "data"                # data/
 
 SOURCE_COLLECTION = "distributions_db"
 TARGET_COLLECTION = "forecast_distribution"
