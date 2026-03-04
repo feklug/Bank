@@ -96,7 +96,7 @@ Die möglichen Kategorien sind:
     Transaktionen die keiner anderen Kategorie zugeordnet werden können,
     oder wo die KI unsicher ist (confidence < 0.7)
 
-Wichtige Regeln:
+Regeln:
 - Weise jeder Transaktion GENAU eine Kategorie zu
 - Nutze die EXAKTE Kategoriebezeichnung aus der Liste (kein Abweichen, kein Kürzen)
 - negativer Betrag = Ausgabe, positiver Betrag = Einnahme
@@ -107,37 +107,6 @@ Wichtige Regeln:
 - LST SAL / Lohnzahlungen → Kategorie 11 (PERSONAL)
 - Antworte NUR mit dem JSON-Array, absolut kein erklärender Text davor oder danach"""
 
-
-def tink_to_flat(tx: dict) -> dict:
-    """Konvertiert Tink-Rohtransaktion → flaches Format. Passthrough wenn bereits flach."""
-    if "betrag" in tx:
-        return tx
-    amount_val = tx.get("amount", {}).get("value", {})
-    unscaled   = int(amount_val.get("unscaledValue", 0))
-    scale      = int(amount_val.get("scale", 2))
-    betrag     = unscaled / (10 ** scale)
-    datum = (
-        tx.get("dates", {}).get("bookedDateTime")
-        or tx.get("dates", {}).get("booked", "")
-    )
-    desc             = tx.get("descriptions", {})
-    verwendungszweck = (
-        desc.get("detailed", {}).get("unstructured")
-        or desc.get("original", "")
-    )
-    counterparties = tx.get("counterparties", [])
-    gegenpartei    = counterparties[0].get("name", "") if counterparties else ""
-    iban           = (
-        counterparties[0].get("identifiers", {}).get("iban", {}).get("iban")
-        if counterparties else None
-    )
-    return {
-        "datum": datum, "betrag": betrag,
-        "verwendungszweck": verwendungszweck,
-        "gegenpartei": gegenpartei, "iban": iban,
-        "status": tx.get("status", "BOOKED"),
-        "tink_id": tx.get("id", ""),
-    }
 
 
 def _validate(result: dict) -> dict:
@@ -170,8 +139,14 @@ def categorize_one(tx: dict) -> dict:
         Bei PENDING: confidence max 0.6.
         Bei API-Fehler: SONDERKATEGORIEN, confidence 0.0.
     """
-    flat       = tink_to_flat(tx)
-    is_pending = flat.get("status", "BOOKED").upper() == "PENDING"
+    flat = {
+        "datum":            str(tx.get("datum", "")),
+        "betrag":           float(tx.get("betrag", 0)),
+        "verwendungszweck": str(tx.get("verwendungszweck", "")),
+        "gegenpartei":      str(tx.get("gegenpartei", "")),
+        "iban":             tx.get("iban") if tx.get("iban") else None,
+    }
+    is_pending = str(tx.get("status", "BOOKED")).upper() == "PENDING"
 
     user_message = (
         "Kategorisiere diese einzelne Transaktion.\n\n"
