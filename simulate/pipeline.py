@@ -83,7 +83,7 @@ SEP_THIN = "─" * 70
 
 def _header(step: int, title: str):
     print(f"\n{SEP}")
-    print(f"  STEP {step}/4  ·  {title}")
+    print(f"  STEP {step}/5  ·  {title}")
     print(SEP)
 
 
@@ -145,6 +145,27 @@ def _init_firestore():
 # ─────────────────────────────────────────────
 # STEPS
 # ─────────────────────────────────────────────
+
+def step5_check_patterns(db) -> dict:
+    """Prüft ob bestehende Patterns noch aktiv sind."""
+    _header(5, "Pattern-Status prüfen")
+    t0 = time.time()
+
+    result = _run_silent(
+        _load_module("check_patterns").check_patterns, db
+    )
+
+    parts = []
+    if result.get("overdue"):
+        parts.append(f"⚠️  {result['overdue']} OVERDUE")
+    if result.get("inactive"):
+        parts.append(f"❌  {result['inactive']} INACTIVE")
+    if not parts:
+        parts.append(f"alle {result.get('active', 0)} aktiv")
+
+    _ok(5, "Pattern-Status", time.time() - t0, extra="  ".join(parts))
+    return result
+
 
 def step1_categorize(tx: dict) -> dict:
     """Kategorisiert die eine TX."""
@@ -277,6 +298,7 @@ def main():
         step2_pattern_check(db, tx_cat)
         step3_detect_patterns(db)
         step4_forecast(db)
+        step5_check_patterns(db)
     except Exception as e:
         print(f"\n❌  Pipeline-Fehler: {e}")
         sys.exit(1)
