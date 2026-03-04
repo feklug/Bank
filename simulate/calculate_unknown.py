@@ -18,7 +18,6 @@ Statistisches Modell (verbessert):
   │                → Netto-Cashflow-Prognose                        │
   │                                                                 │
   │  ZEITEBENE     Tagesgenaue 180-Tage-Prognose                   │
-  │                Typische Buchungszeit aus bookedDateTime          │
   │                Kumulierter Cashflow + Liquiditätsrisikoerkennung │
   └─────────────────────────────────────────────────────────────────┘
 
@@ -110,18 +109,14 @@ def _init_firestore():
 # DATEN LADEN & VORBEREITEN
 # ─────────────────────────────────────────────
 
-def _parse_datum(datum_str: str) -> tuple[date, Optional[int], Optional[int]]:
+def _parse_datum(datum_str: str) -> date:
     s = datum_str.strip()
-    if "T" in s:
-        try:
-            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-            return dt.date(), dt.hour, dt.minute
-        except ValueError:
-            pass
     try:
-        return date.fromisoformat(s[:10]), None, None
+        if "T" in s:
+            return datetime.fromisoformat(s.replace("Z", "+00:00")).date()
+        return date.fromisoformat(s[:10])
     except ValueError:
-        return date.today(), None, None
+        return date.today()
 
 
 def _load_all_distributions(db) -> list[dict]:
@@ -132,10 +127,7 @@ def _load_all_distributions(db) -> list[dict]:
         datum_str = data.get("datum", "")
         if not datum_str:
             continue
-        d, hour, minute = _parse_datum(datum_str)
-        data["_date_obj"] = d
-        data["_hour"]     = hour
-        data["_minute"]   = minute
+        data["_date_obj"] = _parse_datum(datum_str)
         transactions.append(data)
     return transactions
 
@@ -186,33 +178,6 @@ def _build_groups(transactions: list[dict]) -> dict[str, list[dict]]:
             final[cat] = txs
 
     return final
-
-
-# ─────────────────────────────────────────────
-# ZEITANALYSE
-# ─────────────────────────────────────────────
-
-def _circular_mean_time(hours: list[int], minutes: list[int]) -> Optional[str]:
-    if not hours:
-        return None
-    total_minutes = [h * 60 + m for h, m in zip(hours, minutes)]
-    angles = [t / (24 * 60) * 2 * math.pi for t in total_minutes]
-    sin_sum = sum(math.sin(a) for a in angles)
-    cos_sum = sum(math.cos(a) for a in angles)
-    mean_angle = math.atan2(sin_sum, cos_sum) % (2 * math.pi)
-    mean_minutes = round(mean_angle / (2 * math.pi) * 24 * 60)
-    h = (mean_minutes // 60) % 24
-    m = mean_minutes % 60
-    return f"{h:02d}:{m:02d}"
-
-
-def _extract_times(transactions: list[dict]) -> Optional[str]:
-    valid = [(t["_hour"], t["_minute"])
-             for t in transactions
-             if t["_hour"] is not None and t["_minute"] is not None]
-    if not valid:
-        return None
-    return _circular_mean_time([v[0] for v in valid], [v[1] for v in valid])
 
 
 # ─────────────────────────────────────────────
@@ -402,7 +367,6 @@ def _build_daily_forecast(
     amount_std: float,
     dist_type: str,
     direction: str,
-    typical_time: Optional[str],
     lognorm_mu: Optional[float] = None,
     lognorm_sigma: Optional[float] = None,
 ) -> list[dict]:
@@ -427,17 +391,10 @@ def _build_daily_forecast(
         net_low  = round(sign * (ci_high if sign < 0 else ci_low), 2)
         net_high = round(sign * (ci_low  if sign < 0 else ci_high), 2)
 
-        expected_dt = (
-            f"{current.isoformat()}T{typical_time}:00Z"
-            if typical_time
-            else current.isoformat()
-        )
-
         if p_day > 0.01:
             forecast.append({
-                "date":             current.isoformat(),
-                "expected_datetime":expected_dt,
-                "day_of_week":      ["Mo","Di","Mi","Do","Fr","Sa","So"][current.weekday()],
+                "date":        current.isoformat(),
+                "day_of_week": ["Mo","Di","Mi","Do","Fr","Sa","So"][current.weekday()],
                 "p_transaction":    p_day,
                 "p_pct":            round(p_day * 100, 1),
                 "expected_amount":  exp_amt,
@@ -531,8 +488,7 @@ def _build_distribution_doc(
     dom_probs = _dom_probability(txs, ref)
     dow_probs = _dow_probability(txs, ref)
 
-    typical_time = _extract_times(txs)
-    monthly      = _compute_monthly_breakdown(txs, cutoff, ref)
+    monthly        = _compute_monthly_breakdown(txs, cutoff, ref)
 
     daily_forecast = _build_daily_forecast(
         reference_date = ref,
@@ -543,7 +499,6 @@ def _build_distribution_doc(
         amount_std     = amount_std,
         dist_type      = dist_type,
         direction      = direction,
-        typical_time   = typical_time,
         lognorm_mu     = lognorm_mu,
         lognorm_sigma  = lognorm_sigma,
     )
@@ -566,7 +521,6 @@ def _build_distribution_doc(
         "analysis_from":           cutoff.isoformat(),
         "analysis_to":             ref.isoformat(),
         "calculated_at":           datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "typical_booking_time":    typical_time,
         **poisson,
         "dom_probability":         dom_probs,
         "dow_probability":         dow_probs,
@@ -658,8 +612,7 @@ def _print_group(doc: dict):
     print(f"  {dir_sym}  {doc['group_key']}")
     print(f"  {SEP}")
     print(f"  Richtung       : {doc['direction']}  |  "
-          f"Verteilung : {doc.get('dist_type','?').upper()}  |  "
-          f"Buchungszeit: {doc.get('typical_booking_time') or '–'}")
+          f"Verteilung : {doc.get('dist_type','?').upper()}")
     print(f"  Stichproben    : {doc['sample_size']}  "
           f"({doc['analysis_from']} → {doc['analysis_to']})")
     print(f"  λ/Monat        : {doc['lambda_per_month']}  "
