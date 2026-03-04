@@ -271,41 +271,24 @@ def main():
     with open(INPUT_FILE, encoding="utf-8") as f:
         raw_data = json.load(f)
 
+    def _clean_iban(raw) -> str | None:
+        """Gibt None zurück wenn IBAN leer/null, sonst getrimmten String."""
+        if raw is None or str(raw).strip().lower() in ("null", "none", ""):
+            return None
+        return str(raw).strip()
+
     transactions = []
-    skipped = 0
     for t in raw_data:
-        if t.get("status", "").upper() != "BOOKED":
-            skipped += 1
-            continue
-
-        amount_val = t.get("amount", {}).get("value", {})
-        unscaled   = int(amount_val.get("unscaledValue", 0))
-        scale      = int(amount_val.get("scale", 2))
-        betrag     = unscaled / (10 ** scale)
-
-        datum = (
-            t.get("dates", {}).get("bookedDateTime")
-            or t.get("dates", {}).get("booked", "")
-        )
-        desc             = t.get("descriptions", {})
-        verwendungszweck = (
-            desc.get("detailed", {}).get("unstructured")
-            or desc.get("original", "")
-        )
-        counterparties = t.get("counterparties", [])
-        gegenpartei    = counterparties[0].get("name", "") if counterparties else ""
-        iban           = (
-            counterparties[0].get("identifiers", {}).get("iban", {}).get("iban")
-            if counterparties else None
-        )
         transactions.append({
-            "datum": datum, "betrag": betrag,
-            "verwendungszweck": verwendungszweck,
-            "gegenpartei": gegenpartei, "iban": iban,
+            "datum":            str(t.get("datum", "")),
+            "betrag":           float(t.get("betrag", 0)),
+            "verwendungszweck": str(t.get("verwendungszweck", "")),
+            "gegenpartei":      str(t.get("gegenpartei", "")),
+            "iban":             _clean_iban(t.get("iban")),
         })
 
     total_batches = -(len(transactions) // -BATCH_SIZE)
-    print(f"\n✅  {len(raw_data)} Einträge → {len(transactions)} BOOKED ({skipped} übersprungen)")
+    print(f"\n✅  {len(raw_data)} Einträge → {len(transactions)} Transaktionen")
     print(f"    Batches: {total_batches} × {BATCH_SIZE}\n")
 
     # Output-Verzeichnis sicherstellen
