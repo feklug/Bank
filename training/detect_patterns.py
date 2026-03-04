@@ -165,6 +165,13 @@ def parse_datum(datum_str: str) -> tuple[date, str]:
     return d, s[:10]
 
 
+def _clean_iban(raw) -> str | None:
+    """Gibt None zurück wenn IBAN leer/null, sonst getrimmten String."""
+    if raw is None or str(raw).strip().lower() in ("null", "none", ""):
+        return None
+    return str(raw).strip()
+
+
 def load_transactions(path: str) -> list[dict]:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -172,6 +179,7 @@ def load_transactions(path: str) -> list[dict]:
         d, display = parse_datum(t["datum"])
         t["date_obj"]      = d
         t["datum_display"] = display
+        t["iban"]          = _clean_iban(t.get("iban"))   # 'null/AT48...' → 'AT48...'
     return sorted(data, key=lambda x: x["date_obj"])
 
 
