@@ -83,7 +83,7 @@ SEP_THIN = "─" * 70
 
 def _header(step: int, title: str):
     print(f"\n{SEP}")
-    print(f"  STEP {step}/5  ·  {title}")
+    print(f"  STEP {step}/6  ·  {title}")
     print(SEP)
 
 
@@ -131,6 +131,16 @@ def _run_silent(fn, *args, **kwargs):
     return fn(*args, **kwargs)
 
 
+
+def _parse_tx_date(tx: dict):
+    """Extrahiert date-Objekt aus TX-Dict."""
+    from datetime import date as _date
+    s = str(tx.get("datum", "")).strip().split("T")[0].split(" ")[0]
+    try:
+        return _date.fromisoformat(s[:10])
+    except (ValueError, TypeError):
+        return _date.today()
+
 def _init_firestore():
     import firebase_admin
     from firebase_admin import credentials, firestore as fs
@@ -166,6 +176,24 @@ def step5_check_patterns(db) -> dict:
     _ok(5, "Pattern-Status", time.time() - t0, extra="  ".join(parts))
     return result
 
+
+
+def step6_track_performance(db, reference_date, tx_index: int) -> dict:
+    """Trackt Forecast-Performance zu 5 EOD-Checkpoints."""
+    _header(6, "Forecast-Performance tracken")
+    t0 = time.time()
+
+    mod = _load_module("track_performance")
+    result = _run_silent(mod.track_performance, db, reference_date, tx_index)
+
+    worst  = result.get("worst_delta", 0)
+    all_ok = result.get("all_above_wc", False)
+    extra  = (
+        f"{'✅ alle über WC' if all_ok else '⚠️  unter WC'}  |  "
+        f"schlechtestes Δ {worst:>+,.2f} EUR"
+    )
+    _ok(6, "Performance", time.time() - t0, extra=extra)
+    return result
 
 def step1_categorize(tx: dict) -> dict:
     """Kategorisiert die eine TX."""
@@ -299,6 +327,7 @@ def main():
         step3_detect_patterns(db)
         step4_forecast(db)
         step5_check_patterns(db)
+        step6_track_performance(db, tx["_date"] if "_date" in tx else _parse_tx_date(tx), idx)
     except Exception as e:
         print(f"\n❌  Pipeline-Fehler: {e}")
         sys.exit(1)
