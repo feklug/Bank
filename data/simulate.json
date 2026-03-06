@@ -1,6 +1,1234 @@
 [
-  {"datum":"2025-07-01","betrag":-3200.0,"verwendungszweck":"Büromiete 07/2025","gegenpartei":"Bürowelt GmbH","iban":"AT61 1904 3002 3457 3201"},
-  {"datum":"2025-07-01","betrag":-649.0,"verwendungszweck":"Catering Teamlunch Jul","gegenpartei":"Ringana GmbH","iban":"AT22 3400 0001 9988 7766"},
-  {"datum":"2025-07-01","betrag":-850.0,"verwendungszweck":"Serverraummiete 07/2025","gegenpartei":"Datacenter Wien GmbH","iban":"AT83 2011 1400 1234 5600"},
-  {"datum":"2025-07-02","betrag":-1895.0,"verwendungszweck":"Stromrechnung Büro H1/2025","gegenpartei":"Wien Energie GmbH","iban":"AT48 1200 0515 1515 1500"}
+  {
+    "datum": "2024-07-01",
+    "betrag": 2800.0,
+    "verwendungszweck": "Supportvertrag 07/2024",
+    "gegenpartei": "TU Wien",
+    "iban": "AT63 1200 0006 1234 5678"
+  },
+  {
+    "datum": "2024-07-01",
+    "betrag": -3400.0,
+    "verwendungszweck": "Büromiete 07/2024",
+    "gegenpartei": "Vienna Office Center GmbH",
+    "iban": "AT84 2011 1800 8036 9100"
+  },
+  {
+    "datum": "2024-07-02",
+    "betrag": 1800.0,
+    "verwendungszweck": "Supportvertrag 07/2024",
+    "gegenpartei": "Vienna Insurance Group",
+    "iban": "AT77 2050 3021 0123 4567"
+  },
+  {
+    "datum": "2024-07-02",
+    "betrag": -1694.71,
+    "verwendungszweck": "AWS Cloud Services 07/2024",
+    "gegenpartei": "Amazon Web Services EMEA SARL",
+    "iban": null
+  },
+  {
+    "datum": "2024-07-02",
+    "betrag": -420.0,
+    "verwendungszweck": "Gebäudereinigung 07/2024",
+    "gegenpartei": "Dussmann Service GmbH",
+    "iban": "AT55 1200 0006 9876 5432"
+  },
+  {
+    "datum": "2024-07-03",
+    "betrag": -84.0,
+    "verwendungszweck": "GitHub Enterprise 07/2024",
+    "gegenpartei": "GitHub Inc.",
+    "iban": null
+  },
+  {
+    "datum": "2024-07-04",
+    "betrag": 26250.0,
+    "verwendungszweck": "RE 202407-586 IT-Dienstleistungen",
+    "gegenpartei": "Wiener Stadtwerke AG",
+    "iban": "AT98 1200 0100 0712 3456"
+  },
+  {
+    "datum": "2024-07-04",
+    "betrag": 3500.0,
+    "verwendungszweck": "Supportvertrag 07/2024",
+    "gegenpartei": "Wirtschaftskammer WKO",
+    "iban": "AT55 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-07-04",
+    "betrag": -680.0,
+    "verwendungszweck": "Microsoft 365 Business 07/2024",
+    "gegenpartei": "Microsoft Ireland Operations Ltd",
+    "iban": null
+  },
+  {
+    "datum": "2024-07-05",
+    "betrag": 2200.0,
+    "verwendungszweck": "Supportvertrag 07/2024",
+    "gegenpartei": "WU Wien",
+    "iban": "AT31 1900 0000 2412 3456"
+  },
+  {
+    "datum": "2024-07-05",
+    "betrag": -240.0,
+    "verwendungszweck": "BMD Lizenz 07/2024",
+    "gegenpartei": "BMD Systemhaus GesmbH",
+    "iban": "AT47 3200 0000 0456 7890"
+  },
+  {
+    "datum": "2024-07-05",
+    "betrag": -2850.0,
+    "verwendungszweck": "Kreditrate 07/2024 Kto 0923847123",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-07-09",
+    "betrag": 9750.0,
+    "verwendungszweck": "RE 202407-125 IT-Dienstleistungen",
+    "gegenpartei": "Magistrat Wien MA14",
+    "iban": "AT84 3300 0000 0912 3456"
+  },
+  {
+    "datum": "2024-07-11",
+    "betrag": -282.6,
+    "verwendungszweck": "A1 Geschäftskunden 07/2024",
+    "gegenpartei": "A1 Telekom Austria AG",
+    "iban": "AT21 6000 0000 0123 4567"
+  },
+  {
+    "datum": "2024-07-15",
+    "betrag": -14069.47,
+    "verwendungszweck": "SV-Beiträge 07/2024",
+    "gegenpartei": "Österreichische Gesundheitskasse ÖGK",
+    "iban": "AT14 6000 0000 0712 3457"
+  },
+  {
+    "datum": "2024-07-15",
+    "betrag": -3000.0,
+    "verwendungszweck": "KöSt-Vorauszahlung 2024/Q3",
+    "gegenpartei": "Finanzamt Österreich",
+    "iban": "AT83 0100 0000 0550 4040"
+  },
+  {
+    "datum": "2024-07-15",
+    "betrag": -2670.0,
+    "verwendungszweck": "Betriebshaftpflicht Q3/2024",
+    "gegenpartei": "Wiener Städtische Versicherung AG",
+    "iban": "AT61 2011 1400 2234 5679"
+  },
+  {
+    "datum": "2024-07-16",
+    "betrag": -1400.0,
+    "verwendungszweck": "Steuerberatung Q3/2024",
+    "gegenpartei": "Dorda Steuerberatungs GmbH",
+    "iban": "AT48 3200 0000 0345 6789"
+  },
+  {
+    "datum": "2024-07-22",
+    "betrag": -15000.0,
+    "verwendungszweck": "UVA Q3/2024 Umsatzsteuer",
+    "gegenpartei": "Finanzamt Österreich",
+    "iban": "AT83 0100 0000 0550 4040"
+  },
+  {
+    "datum": "2024-07-22",
+    "betrag": -1400.0,
+    "verwendungszweck": "Steuerberatung Sonder Q2/2024",
+    "gegenpartei": "Dorda Steuerberatungs GmbH",
+    "iban": "AT48 3200 0000 0345 6789"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -4768.0,
+    "verwendungszweck": "LST SAL 07/2024 - Markus Gruber",
+    "gegenpartei": "Markus Gruber",
+    "iban": "AT93 1090 2746 7965 4585"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -4172.0,
+    "verwendungszweck": "LST SAL 07/2024 - Julia Hofmann",
+    "gegenpartei": "Julia Hofmann",
+    "iban": "AT99 9486 8611 1822 5082"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -5165.0,
+    "verwendungszweck": "LST SAL 07/2024 - Stefan Bauer",
+    "gegenpartei": "Stefan Bauer",
+    "iban": "AT68 3184 8612 9702 6198"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -3846.0,
+    "verwendungszweck": "LST SAL 07/2024 - Lisa Wagner",
+    "gegenpartei": "Lisa Wagner",
+    "iban": "AT66 9270 7991 9976 8305"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -4570.0,
+    "verwendungszweck": "LST SAL 07/2024 - Thomas Müller",
+    "gegenpartei": "Thomas Müller",
+    "iban": "AT70 8373 5246 5050 5543"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -3648.0,
+    "verwendungszweck": "LST SAL 07/2024 - Anna Schreiber",
+    "gegenpartei": "Anna Schreiber",
+    "iban": "AT76 8939 4919 5499 8206"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -5759.0,
+    "verwendungszweck": "LST SAL 07/2024 - Michael Huber",
+    "gegenpartei": "Michael Huber",
+    "iban": "AT46 4841 5451 6502 6238"
+  },
+  {
+    "datum": "2024-07-25",
+    "betrag": -4019.0,
+    "verwendungszweck": "LST SAL 07/2024 - Sandra Koch",
+    "gegenpartei": "Sandra Koch",
+    "iban": "AT20 3267 3471 4788 7275"
+  },
+  {
+    "datum": "2024-07-29",
+    "betrag": -89.99,
+    "verwendungszweck": "Kontoführungsentgelt 07/2024",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-08-01",
+    "betrag": 2200.0,
+    "verwendungszweck": "Supportvertrag 08/2024",
+    "gegenpartei": "WU Wien",
+    "iban": "AT31 1900 0000 2412 3456"
+  },
+  {
+    "datum": "2024-08-01",
+    "betrag": -3400.0,
+    "verwendungszweck": "Büromiete 08/2024",
+    "gegenpartei": "Vienna Office Center GmbH",
+    "iban": "AT84 2011 1800 8036 9100"
+  },
+  {
+    "datum": "2024-08-01",
+    "betrag": -680.0,
+    "verwendungszweck": "Microsoft 365 Business 08/2024",
+    "gegenpartei": "Microsoft Ireland Operations Ltd",
+    "iban": null
+  },
+  {
+    "datum": "2024-08-02",
+    "betrag": -84.0,
+    "verwendungszweck": "GitHub Enterprise 08/2024",
+    "gegenpartei": "GitHub Inc.",
+    "iban": null
+  },
+  {
+    "datum": "2024-08-05",
+    "betrag": 2800.0,
+    "verwendungszweck": "Supportvertrag 08/2024",
+    "gegenpartei": "TU Wien",
+    "iban": "AT63 1200 0006 1234 5678"
+  },
+  {
+    "datum": "2024-08-05",
+    "betrag": 3500.0,
+    "verwendungszweck": "Supportvertrag 08/2024",
+    "gegenpartei": "Wirtschaftskammer WKO",
+    "iban": "AT55 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-08-05",
+    "betrag": 1800.0,
+    "verwendungszweck": "Supportvertrag 08/2024",
+    "gegenpartei": "Vienna Insurance Group",
+    "iban": "AT77 2050 3021 0123 4567"
+  },
+  {
+    "datum": "2024-08-05",
+    "betrag": -2110.73,
+    "verwendungszweck": "AWS Cloud Services 08/2024",
+    "gegenpartei": "Amazon Web Services EMEA SARL",
+    "iban": null
+  },
+  {
+    "datum": "2024-08-05",
+    "betrag": -240.0,
+    "verwendungszweck": "BMD Lizenz 08/2024",
+    "gegenpartei": "BMD Systemhaus GesmbH",
+    "iban": "AT47 3200 0000 0456 7890"
+  },
+  {
+    "datum": "2024-08-05",
+    "betrag": -420.0,
+    "verwendungszweck": "Gebäudereinigung 08/2024",
+    "gegenpartei": "Dussmann Service GmbH",
+    "iban": "AT55 1200 0006 9876 5432"
+  },
+  {
+    "datum": "2024-08-05",
+    "betrag": -2850.0,
+    "verwendungszweck": "Kreditrate 08/2024 Kto 0923847123",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-08-08",
+    "betrag": -287.24,
+    "verwendungszweck": "A1 Geschäftskunden 08/2024",
+    "gegenpartei": "A1 Telekom Austria AG",
+    "iban": "AT21 6000 0000 0123 4567"
+  },
+  {
+    "datum": "2024-08-15",
+    "betrag": -13501.21,
+    "verwendungszweck": "SV-Beiträge 08/2024",
+    "gegenpartei": "Österreichische Gesundheitskasse ÖGK",
+    "iban": "AT14 6000 0000 0712 3457"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": 16700.0,
+    "verwendungszweck": "RE 202408-651 IT-Dienstleistungen",
+    "gegenpartei": "Magistrat Wien MA14",
+    "iban": "AT84 3300 0000 0912 3456"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": 27400.0,
+    "verwendungszweck": "RE 202408-325 IT-Dienstleistungen",
+    "gegenpartei": "s IT Solutions AT Spardat GmbH",
+    "iban": "AT21 6000 0000 0712 3456"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -4766.0,
+    "verwendungszweck": "LST SAL 08/2024 - Markus Gruber",
+    "gegenpartei": "Markus Gruber",
+    "iban": "AT89 9751 1441 7455 1444"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -4160.0,
+    "verwendungszweck": "LST SAL 08/2024 - Julia Hofmann",
+    "gegenpartei": "Julia Hofmann",
+    "iban": "AT92 8022 3223 8564 3977"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -5156.0,
+    "verwendungszweck": "LST SAL 08/2024 - Stefan Bauer",
+    "gegenpartei": "Stefan Bauer",
+    "iban": "AT43 7211 6363 4467 8449"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -3791.0,
+    "verwendungszweck": "LST SAL 08/2024 - Lisa Wagner",
+    "gegenpartei": "Lisa Wagner",
+    "iban": "AT53 7211 5558 7906 5133"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -4560.0,
+    "verwendungszweck": "LST SAL 08/2024 - Thomas Müller",
+    "gegenpartei": "Thomas Müller",
+    "iban": "AT70 1317 9837 1853 6733"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -3578.0,
+    "verwendungszweck": "LST SAL 08/2024 - Anna Schreiber",
+    "gegenpartei": "Anna Schreiber",
+    "iban": "AT93 2124 1659 1508 5051"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -5775.0,
+    "verwendungszweck": "LST SAL 08/2024 - Michael Huber",
+    "gegenpartei": "Michael Huber",
+    "iban": "AT12 3496 4908 3068 8758"
+  },
+  {
+    "datum": "2024-08-26",
+    "betrag": -4035.0,
+    "verwendungszweck": "LST SAL 08/2024 - Sandra Koch",
+    "gegenpartei": "Sandra Koch",
+    "iban": "AT24 4571 8619 5198 7043"
+  },
+  {
+    "datum": "2024-08-28",
+    "betrag": -82.27,
+    "verwendungszweck": "Kontoführungsentgelt 08/2024",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-09-02",
+    "betrag": 2800.0,
+    "verwendungszweck": "Supportvertrag 09/2024",
+    "gegenpartei": "TU Wien",
+    "iban": "AT63 1200 0006 1234 5678"
+  },
+  {
+    "datum": "2024-09-02",
+    "betrag": 3500.0,
+    "verwendungszweck": "Supportvertrag 09/2024",
+    "gegenpartei": "Wirtschaftskammer WKO",
+    "iban": "AT55 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-09-02",
+    "betrag": -3400.0,
+    "verwendungszweck": "Büromiete 09/2024",
+    "gegenpartei": "Vienna Office Center GmbH",
+    "iban": "AT84 2011 1800 8036 9100"
+  },
+  {
+    "datum": "2024-09-02",
+    "betrag": -1984.41,
+    "verwendungszweck": "AWS Cloud Services 09/2024",
+    "gegenpartei": "Amazon Web Services EMEA SARL",
+    "iban": null
+  },
+  {
+    "datum": "2024-09-02",
+    "betrag": -240.0,
+    "verwendungszweck": "BMD Lizenz 09/2024",
+    "gegenpartei": "BMD Systemhaus GesmbH",
+    "iban": "AT47 3200 0000 0456 7890"
+  },
+  {
+    "datum": "2024-09-03",
+    "betrag": 1800.0,
+    "verwendungszweck": "Supportvertrag 09/2024",
+    "gegenpartei": "Vienna Insurance Group",
+    "iban": "AT77 2050 3021 0123 4567"
+  },
+  {
+    "datum": "2024-09-04",
+    "betrag": 2200.0,
+    "verwendungszweck": "Supportvertrag 09/2024",
+    "gegenpartei": "WU Wien",
+    "iban": "AT31 1900 0000 2412 3456"
+  },
+  {
+    "datum": "2024-09-04",
+    "betrag": -680.0,
+    "verwendungszweck": "Microsoft 365 Business 09/2024",
+    "gegenpartei": "Microsoft Ireland Operations Ltd",
+    "iban": null
+  },
+  {
+    "datum": "2024-09-04",
+    "betrag": -84.0,
+    "verwendungszweck": "GitHub Enterprise 09/2024",
+    "gegenpartei": "GitHub Inc.",
+    "iban": null
+  },
+  {
+    "datum": "2024-09-04",
+    "betrag": -420.0,
+    "verwendungszweck": "Gebäudereinigung 09/2024",
+    "gegenpartei": "Dussmann Service GmbH",
+    "iban": "AT55 1200 0006 9876 5432"
+  },
+  {
+    "datum": "2024-09-05",
+    "betrag": -2850.0,
+    "verwendungszweck": "Kreditrate 09/2024 Kto 0923847123",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-09-09",
+    "betrag": -279.14,
+    "verwendungszweck": "A1 Geschäftskunden 09/2024",
+    "gegenpartei": "A1 Telekom Austria AG",
+    "iban": "AT21 6000 0000 0123 4567"
+  },
+  {
+    "datum": "2024-09-10",
+    "betrag": 12600.0,
+    "verwendungszweck": "RE 202409-813 IT-Dienstleistungen",
+    "gegenpartei": "Kapsch BusinessCom AG",
+    "iban": "AT47 2011 1400 1234 5678"
+  },
+  {
+    "datum": "2024-09-12",
+    "betrag": 41750.0,
+    "verwendungszweck": "RE 202409-800 IT-Dienstleistungen",
+    "gegenpartei": "Wiener Stadtwerke AG",
+    "iban": "AT98 1200 0100 0712 3456"
+  },
+  {
+    "datum": "2024-09-16",
+    "betrag": -13919.59,
+    "verwendungszweck": "SV-Beiträge 09/2024",
+    "gegenpartei": "Österreichische Gesundheitskasse ÖGK",
+    "iban": "AT14 6000 0000 0712 3457"
+  },
+  {
+    "datum": "2024-09-16",
+    "betrag": 19000.0,
+    "verwendungszweck": "RE 202409-012 Netzwerkinfrastruktur",
+    "gegenpartei": "Kapsch BusinessCom AG",
+    "iban": "AT47 2011 1400 1234 5678"
+  },
+  {
+    "datum": "2024-09-23",
+    "betrag": 29650.0,
+    "verwendungszweck": "RE 202409-950 IT-Dienstleistungen",
+    "gegenpartei": "s IT Solutions AT Spardat GmbH",
+    "iban": "AT21 6000 0000 0712 3456"
+  },
+  {
+    "datum": "2024-09-23",
+    "betrag": 18050.0,
+    "verwendungszweck": "RE 202409-915 IT-Dienstleistungen",
+    "gegenpartei": "Raiffeisen Informatik GmbH",
+    "iban": "AT12 3200 0000 0012 3456"
+  },
+  {
+    "datum": "2024-09-23",
+    "betrag": -3100.0,
+    "verwendungszweck": "Hardware Einkauf RE72031",
+    "gegenpartei": "Bechtle GmbH & Co. KG",
+    "iban": "AT84 2011 1400 1234 5679"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -4751.0,
+    "verwendungszweck": "LST SAL 09/2024 - Markus Gruber",
+    "gegenpartei": "Markus Gruber",
+    "iban": "AT63 9031 2729 8102 6934"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -4231.0,
+    "verwendungszweck": "LST SAL 09/2024 - Julia Hofmann",
+    "gegenpartei": "Julia Hofmann",
+    "iban": "AT68 3506 8135 3885 9548"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -5233.0,
+    "verwendungszweck": "LST SAL 09/2024 - Stefan Bauer",
+    "gegenpartei": "Stefan Bauer",
+    "iban": "AT44 9817 8921 8616 8136"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -3843.0,
+    "verwendungszweck": "LST SAL 09/2024 - Lisa Wagner",
+    "gegenpartei": "Lisa Wagner",
+    "iban": "AT85 5397 6280 5022 2419"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -4585.0,
+    "verwendungszweck": "LST SAL 09/2024 - Thomas Müller",
+    "gegenpartei": "Thomas Müller",
+    "iban": "AT67 4995 8613 7209 6511"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -3553.0,
+    "verwendungszweck": "LST SAL 09/2024 - Anna Schreiber",
+    "gegenpartei": "Anna Schreiber",
+    "iban": "AT73 6325 3979 8988 4475"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -5795.0,
+    "verwendungszweck": "LST SAL 09/2024 - Michael Huber",
+    "gegenpartei": "Michael Huber",
+    "iban": "AT43 6576 5581 5526 1166"
+  },
+  {
+    "datum": "2024-09-25",
+    "betrag": -4016.0,
+    "verwendungszweck": "LST SAL 09/2024 - Sandra Koch",
+    "gegenpartei": "Sandra Koch",
+    "iban": "AT34 2402 4954 7658 9004"
+  },
+  {
+    "datum": "2024-09-30",
+    "betrag": -85.75,
+    "verwendungszweck": "Kontoführungsentgelt 09/2024",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-10-01",
+    "betrag": 3500.0,
+    "verwendungszweck": "Supportvertrag 10/2024",
+    "gegenpartei": "Wirtschaftskammer WKO",
+    "iban": "AT55 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-10-01",
+    "betrag": -3400.0,
+    "verwendungszweck": "Büromiete 10/2024",
+    "gegenpartei": "Vienna Office Center GmbH",
+    "iban": "AT84 2011 1800 8036 9100"
+  },
+  {
+    "datum": "2024-10-01",
+    "betrag": -1946.95,
+    "verwendungszweck": "AWS Cloud Services 10/2024",
+    "gegenpartei": "Amazon Web Services EMEA SARL",
+    "iban": null
+  },
+  {
+    "datum": "2024-10-01",
+    "betrag": -680.0,
+    "verwendungszweck": "Microsoft 365 Business 10/2024",
+    "gegenpartei": "Microsoft Ireland Operations Ltd",
+    "iban": null
+  },
+  {
+    "datum": "2024-10-02",
+    "betrag": -84.0,
+    "verwendungszweck": "GitHub Enterprise 10/2024",
+    "gegenpartei": "GitHub Inc.",
+    "iban": null
+  },
+  {
+    "datum": "2024-10-02",
+    "betrag": -240.0,
+    "verwendungszweck": "BMD Lizenz 10/2024",
+    "gegenpartei": "BMD Systemhaus GesmbH",
+    "iban": "AT47 3200 0000 0456 7890"
+  },
+  {
+    "datum": "2024-10-02",
+    "betrag": -420.0,
+    "verwendungszweck": "Gebäudereinigung 10/2024",
+    "gegenpartei": "Dussmann Service GmbH",
+    "iban": "AT55 1200 0006 9876 5432"
+  },
+  {
+    "datum": "2024-10-03",
+    "betrag": 2800.0,
+    "verwendungszweck": "Supportvertrag 10/2024",
+    "gegenpartei": "TU Wien",
+    "iban": "AT63 1200 0006 1234 5678"
+  },
+  {
+    "datum": "2024-10-03",
+    "betrag": 1800.0,
+    "verwendungszweck": "Supportvertrag 10/2024",
+    "gegenpartei": "Vienna Insurance Group",
+    "iban": "AT77 2050 3021 0123 4567"
+  },
+  {
+    "datum": "2024-10-07",
+    "betrag": 9450.0,
+    "verwendungszweck": "RE 202410-423 IT-Dienstleistungen",
+    "gegenpartei": "Bawag P.S.K. AG",
+    "iban": "AT11 1400 0080 1234 5678"
+  },
+  {
+    "datum": "2024-10-07",
+    "betrag": 19700.0,
+    "verwendungszweck": "RE 202410-880 IT-Dienstleistungen",
+    "gegenpartei": "Magistrat Wien MA14",
+    "iban": "AT84 3300 0000 0912 3456"
+  },
+  {
+    "datum": "2024-10-07",
+    "betrag": 2200.0,
+    "verwendungszweck": "Supportvertrag 10/2024",
+    "gegenpartei": "WU Wien",
+    "iban": "AT31 1900 0000 2412 3456"
+  },
+  {
+    "datum": "2024-10-07",
+    "betrag": -2850.0,
+    "verwendungszweck": "Kreditrate 10/2024 Kto 0923847123",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-10-07",
+    "betrag": 58000.0,
+    "verwendungszweck": "RE 202410-001 Digitalisierungsprojekt Phase 1",
+    "gegenpartei": "Raiffeisen Informatik GmbH",
+    "iban": "AT12 3200 0000 0012 3456"
+  },
+  {
+    "datum": "2024-10-08",
+    "betrag": 10450.0,
+    "verwendungszweck": "RE 202410-321 IT-Dienstleistungen",
+    "gegenpartei": "Erste Digital GmbH",
+    "iban": "AT33 2011 1829 1234 5678"
+  },
+  {
+    "datum": "2024-10-10",
+    "betrag": -289.57,
+    "verwendungszweck": "A1 Geschäftskunden 10/2024",
+    "gegenpartei": "A1 Telekom Austria AG",
+    "iban": "AT21 6000 0000 0123 4567"
+  },
+  {
+    "datum": "2024-10-10",
+    "betrag": -2670.0,
+    "verwendungszweck": "Betriebshaftpflicht Q4/2024",
+    "gegenpartei": "Wiener Städtische Versicherung AG",
+    "iban": "AT61 2011 1400 2234 5679"
+  },
+  {
+    "datum": "2024-10-10",
+    "betrag": 28000.0,
+    "verwendungszweck": "RE 202410-002 E-Government Portal",
+    "gegenpartei": "Magistrat Wien MA14",
+    "iban": "AT84 3300 0000 0912 3456"
+  },
+  {
+    "datum": "2024-10-14",
+    "betrag": 21600.0,
+    "verwendungszweck": "RE 202410-377 IT-Dienstleistungen",
+    "gegenpartei": "Kapsch BusinessCom AG",
+    "iban": "AT47 2011 1400 1234 5678"
+  },
+  {
+    "datum": "2024-10-14",
+    "betrag": 8200.0,
+    "verwendungszweck": "RE 202410-336 IT-Dienstleistungen",
+    "gegenpartei": "AMS Österreich",
+    "iban": "AT61 1904 3002 3457 3201"
+  },
+  {
+    "datum": "2024-10-15",
+    "betrag": -13934.12,
+    "verwendungszweck": "SV-Beiträge 10/2024",
+    "gegenpartei": "Österreichische Gesundheitskasse ÖGK",
+    "iban": "AT14 6000 0000 0712 3457"
+  },
+  {
+    "datum": "2024-10-15",
+    "betrag": -4000.0,
+    "verwendungszweck": "KöSt-Vorauszahlung 2024/Q4",
+    "gegenpartei": "Finanzamt Österreich",
+    "iban": "AT83 0100 0000 0550 4040"
+  },
+  {
+    "datum": "2024-10-16",
+    "betrag": -1400.0,
+    "verwendungszweck": "Steuerberatung Q4/2024",
+    "gegenpartei": "Dorda Steuerberatungs GmbH",
+    "iban": "AT48 3200 0000 0345 6789"
+  },
+  {
+    "datum": "2024-10-21",
+    "betrag": -8000.0,
+    "verwendungszweck": "UVA Q4/2024 Umsatzsteuer",
+    "gegenpartei": "Finanzamt Österreich",
+    "iban": "AT83 0100 0000 0550 4040"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -4779.0,
+    "verwendungszweck": "LST SAL 10/2024 - Markus Gruber",
+    "gegenpartei": "Markus Gruber",
+    "iban": "AT56 3939 5952 1231 9751"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -4166.0,
+    "verwendungszweck": "LST SAL 10/2024 - Julia Hofmann",
+    "gegenpartei": "Julia Hofmann",
+    "iban": "AT45 1745 1893 5786 3068"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -5231.0,
+    "verwendungszweck": "LST SAL 10/2024 - Stefan Bauer",
+    "gegenpartei": "Stefan Bauer",
+    "iban": "AT72 2680 1200 5658 8690"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -3811.0,
+    "verwendungszweck": "LST SAL 10/2024 - Lisa Wagner",
+    "gegenpartei": "Lisa Wagner",
+    "iban": "AT66 6582 4020 1841 5136"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -4611.0,
+    "verwendungszweck": "LST SAL 10/2024 - Thomas Müller",
+    "gegenpartei": "Thomas Müller",
+    "iban": "AT24 2070 7565 9056 2213"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -3623.0,
+    "verwendungszweck": "LST SAL 10/2024 - Anna Schreiber",
+    "gegenpartei": "Anna Schreiber",
+    "iban": "AT90 1878 3485 3444 5978"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -5760.0,
+    "verwendungszweck": "LST SAL 10/2024 - Michael Huber",
+    "gegenpartei": "Michael Huber",
+    "iban": "AT41 2940 7818 4697 9561"
+  },
+  {
+    "datum": "2024-10-25",
+    "betrag": -3998.0,
+    "verwendungszweck": "LST SAL 10/2024 - Sandra Koch",
+    "gegenpartei": "Sandra Koch",
+    "iban": "AT67 8253 5871 8025 6003"
+  },
+  {
+    "datum": "2024-10-28",
+    "betrag": -72.2,
+    "verwendungszweck": "Kontoführungsentgelt 10/2024",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-11-01",
+    "betrag": 2200.0,
+    "verwendungszweck": "Supportvertrag 11/2024",
+    "gegenpartei": "WU Wien",
+    "iban": "AT31 1900 0000 2412 3456"
+  },
+  {
+    "datum": "2024-11-01",
+    "betrag": -3400.0,
+    "verwendungszweck": "Büromiete 11/2024",
+    "gegenpartei": "Vienna Office Center GmbH",
+    "iban": "AT84 2011 1800 8036 9100"
+  },
+  {
+    "datum": "2024-11-01",
+    "betrag": -240.0,
+    "verwendungszweck": "BMD Lizenz 11/2024",
+    "gegenpartei": "BMD Systemhaus GesmbH",
+    "iban": "AT47 3200 0000 0456 7890"
+  },
+  {
+    "datum": "2024-11-04",
+    "betrag": 2800.0,
+    "verwendungszweck": "Supportvertrag 11/2024",
+    "gegenpartei": "TU Wien",
+    "iban": "AT63 1200 0006 1234 5678"
+  },
+  {
+    "datum": "2024-11-04",
+    "betrag": -1971.44,
+    "verwendungszweck": "AWS Cloud Services 11/2024",
+    "gegenpartei": "Amazon Web Services EMEA SARL",
+    "iban": null
+  },
+  {
+    "datum": "2024-11-04",
+    "betrag": -680.0,
+    "verwendungszweck": "Microsoft 365 Business 11/2024",
+    "gegenpartei": "Microsoft Ireland Operations Ltd",
+    "iban": null
+  },
+  {
+    "datum": "2024-11-04",
+    "betrag": -420.0,
+    "verwendungszweck": "Gebäudereinigung 11/2024",
+    "gegenpartei": "Dussmann Service GmbH",
+    "iban": "AT55 1200 0006 9876 5432"
+  },
+  {
+    "datum": "2024-11-05",
+    "betrag": 1800.0,
+    "verwendungszweck": "Supportvertrag 11/2024",
+    "gegenpartei": "Vienna Insurance Group",
+    "iban": "AT77 2050 3021 0123 4567"
+  },
+  {
+    "datum": "2024-11-05",
+    "betrag": -84.0,
+    "verwendungszweck": "GitHub Enterprise 11/2024",
+    "gegenpartei": "GitHub Inc.",
+    "iban": null
+  },
+  {
+    "datum": "2024-11-05",
+    "betrag": -2850.0,
+    "verwendungszweck": "Kreditrate 11/2024 Kto 0923847123",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-11-11",
+    "betrag": 11350.0,
+    "verwendungszweck": "RE 202411-906 IT-Dienstleistungen",
+    "gegenpartei": "Erste Digital GmbH",
+    "iban": "AT33 2011 1829 1234 5678"
+  },
+  {
+    "datum": "2024-11-11",
+    "betrag": 30850.0,
+    "verwendungszweck": "RE 202411-217 IT-Dienstleistungen",
+    "gegenpartei": "Wiener Stadtwerke AG",
+    "iban": "AT98 1200 0100 0712 3456"
+  },
+  {
+    "datum": "2024-11-11",
+    "betrag": -273.26,
+    "verwendungszweck": "A1 Geschäftskunden 11/2024",
+    "gegenpartei": "A1 Telekom Austria AG",
+    "iban": "AT21 6000 0000 0123 4567"
+  },
+  {
+    "datum": "2024-11-12",
+    "betrag": 12800.0,
+    "verwendungszweck": "RE 202411-172 IT-Dienstleistungen",
+    "gegenpartei": "Bawag P.S.K. AG",
+    "iban": "AT11 1400 0080 1234 5678"
+  },
+  {
+    "datum": "2024-11-15",
+    "betrag": -14069.17,
+    "verwendungszweck": "SV-Beiträge 11/2024",
+    "gegenpartei": "Österreichische Gesundheitskasse ÖGK",
+    "iban": "AT14 6000 0000 0712 3457"
+  },
+  {
+    "datum": "2024-11-20",
+    "betrag": 17750.0,
+    "verwendungszweck": "RE 202411-763 IT-Dienstleistungen",
+    "gegenpartei": "s IT Solutions AT Spardat GmbH",
+    "iban": "AT21 6000 0000 0712 3456"
+  },
+  {
+    "datum": "2024-11-21",
+    "betrag": 31900.0,
+    "verwendungszweck": "RE 202411-923 IT-Dienstleistungen",
+    "gegenpartei": "Raiffeisen Informatik GmbH",
+    "iban": "AT12 3200 0000 0012 3456"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -4845.0,
+    "verwendungszweck": "LST SAL 11/2024 - Markus Gruber",
+    "gegenpartei": "Markus Gruber",
+    "iban": "AT82 5728 8195 3037 8679"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -4238.0,
+    "verwendungszweck": "LST SAL 11/2024 - Julia Hofmann",
+    "gegenpartei": "Julia Hofmann",
+    "iban": "AT48 7594 5460 9199 9847"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -5213.0,
+    "verwendungszweck": "LST SAL 11/2024 - Stefan Bauer",
+    "gegenpartei": "Stefan Bauer",
+    "iban": "AT66 2317 1653 8078 6280"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -3827.0,
+    "verwendungszweck": "LST SAL 11/2024 - Lisa Wagner",
+    "gegenpartei": "Lisa Wagner",
+    "iban": "AT42 1423 2496 4750 1339"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -4647.0,
+    "verwendungszweck": "LST SAL 11/2024 - Thomas Müller",
+    "gegenpartei": "Thomas Müller",
+    "iban": "AT96 5415 1659 3870 8708"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -3616.0,
+    "verwendungszweck": "LST SAL 11/2024 - Anna Schreiber",
+    "gegenpartei": "Anna Schreiber",
+    "iban": "AT93 8245 5557 3973 8141"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -5831.0,
+    "verwendungszweck": "LST SAL 11/2024 - Michael Huber",
+    "gegenpartei": "Michael Huber",
+    "iban": "AT72 2494 8700 6700 7690"
+  },
+  {
+    "datum": "2024-11-25",
+    "betrag": -3992.0,
+    "verwendungszweck": "LST SAL 11/2024 - Sandra Koch",
+    "gegenpartei": "Sandra Koch",
+    "iban": "AT51 2713 3634 6403 7744"
+  },
+  {
+    "datum": "2024-11-28",
+    "betrag": -74.7,
+    "verwendungszweck": "Kontoführungsentgelt 11/2024",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-12-02",
+    "betrag": 2800.0,
+    "verwendungszweck": "Supportvertrag 12/2024",
+    "gegenpartei": "TU Wien",
+    "iban": "AT63 1200 0006 1234 5678"
+  },
+  {
+    "datum": "2024-12-02",
+    "betrag": -3400.0,
+    "verwendungszweck": "Büromiete 12/2024",
+    "gegenpartei": "Vienna Office Center GmbH",
+    "iban": "AT84 2011 1800 8036 9100"
+  },
+  {
+    "datum": "2024-12-02",
+    "betrag": -420.0,
+    "verwendungszweck": "Gebäudereinigung 12/2024",
+    "gegenpartei": "Dussmann Service GmbH",
+    "iban": "AT55 1200 0006 9876 5432"
+  },
+  {
+    "datum": "2024-12-03",
+    "betrag": 3500.0,
+    "verwendungszweck": "Supportvertrag 12/2024",
+    "gegenpartei": "Wirtschaftskammer WKO",
+    "iban": "AT55 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-12-03",
+    "betrag": -1920.26,
+    "verwendungszweck": "AWS Cloud Services 12/2024",
+    "gegenpartei": "Amazon Web Services EMEA SARL",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-04",
+    "betrag": 1800.0,
+    "verwendungszweck": "Supportvertrag 12/2024",
+    "gegenpartei": "Vienna Insurance Group",
+    "iban": "AT77 2050 3021 0123 4567"
+  },
+  {
+    "datum": "2024-12-04",
+    "betrag": -84.0,
+    "verwendungszweck": "GitHub Enterprise 12/2024",
+    "gegenpartei": "GitHub Inc.",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-04",
+    "betrag": -240.0,
+    "verwendungszweck": "BMD Lizenz 12/2024",
+    "gegenpartei": "BMD Systemhaus GesmbH",
+    "iban": "AT47 3200 0000 0456 7890"
+  },
+  {
+    "datum": "2024-12-05",
+    "betrag": 2200.0,
+    "verwendungszweck": "Supportvertrag 12/2024",
+    "gegenpartei": "WU Wien",
+    "iban": "AT31 1900 0000 2412 3456"
+  },
+  {
+    "datum": "2024-12-05",
+    "betrag": -680.0,
+    "verwendungszweck": "Microsoft 365 Business 12/2024",
+    "gegenpartei": "Microsoft Ireland Operations Ltd",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-05",
+    "betrag": -2850.0,
+    "verwendungszweck": "Kreditrate 12/2024 Kto 0923847123",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  },
+  {
+    "datum": "2024-12-09",
+    "betrag": 23250.0,
+    "verwendungszweck": "RE 202412-470 IT-Dienstleistungen",
+    "gegenpartei": "Kapsch BusinessCom AG",
+    "iban": "AT47 2011 1400 1234 5678"
+  },
+  {
+    "datum": "2024-12-10",
+    "betrag": -295.53,
+    "verwendungszweck": "A1 Geschäftskunden 12/2024",
+    "gegenpartei": "A1 Telekom Austria AG",
+    "iban": "AT21 6000 0000 0123 4567"
+  },
+  {
+    "datum": "2024-12-12",
+    "betrag": -3800.0,
+    "verwendungszweck": "Jahresabschluss 2024 Steuerberatung",
+    "gegenpartei": "Dorda Steuerberatungs GmbH",
+    "iban": "AT48 3200 0000 0345 6789"
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -13843.09,
+    "verwendungszweck": "SV-Beiträge 12/2024",
+    "gegenpartei": "Österreichische Gesundheitskasse ÖGK",
+    "iban": "AT14 6000 0000 0712 3457"
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -5270.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Markus Gruber",
+    "gegenpartei": "Markus Gruber",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -4545.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Julia Hofmann",
+    "gegenpartei": "Julia Hofmann",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -5848.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Stefan Bauer",
+    "gegenpartei": "Stefan Bauer",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -3627.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Lisa Wagner",
+    "gegenpartei": "Lisa Wagner",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -4901.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Thomas Müller",
+    "gegenpartei": "Thomas Müller",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -4062.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Anna Schreiber",
+    "gegenpartei": "Anna Schreiber",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -6915.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Michael Huber",
+    "gegenpartei": "Michael Huber",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-16",
+    "betrag": -3993.0,
+    "verwendungszweck": "Weihnachtsbonus 2024 - Sandra Koch",
+    "gegenpartei": "Sandra Koch",
+    "iban": null
+  },
+  {
+    "datum": "2024-12-17",
+    "betrag": 25550.0,
+    "verwendungszweck": "RE 202412-155 IT-Dienstleistungen",
+    "gegenpartei": "Raiffeisen Informatik GmbH",
+    "iban": "AT12 3200 0000 0012 3456"
+  },
+  {
+    "datum": "2024-12-18",
+    "betrag": -1000.0,
+    "verwendungszweck": "Hardware Einkauf RE51704",
+    "gegenpartei": "Bechtle GmbH & Co. KG",
+    "iban": "AT84 2011 1400 1234 5679"
+  },
+  {
+    "datum": "2024-12-20",
+    "betrag": -9500.0,
+    "verwendungszweck": "Körperschaftsteuer Nachzahlung 2023",
+    "gegenpartei": "Finanzamt Österreich",
+    "iban": "AT83 0100 0000 0550 4040"
+  },
+  {
+    "datum": "2024-12-23",
+    "betrag": 18750.0,
+    "verwendungszweck": "RE 202412-740 IT-Dienstleistungen",
+    "gegenpartei": "Magistrat Wien MA14",
+    "iban": "AT84 3300 0000 0912 3456"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -4765.0,
+    "verwendungszweck": "LST SAL 12/2024 - Markus Gruber",
+    "gegenpartei": "Markus Gruber",
+    "iban": "AT13 4920 3594 6091 1224"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -4220.0,
+    "verwendungszweck": "LST SAL 12/2024 - Julia Hofmann",
+    "gegenpartei": "Julia Hofmann",
+    "iban": "AT62 2527 4681 2858 8560"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -5165.0,
+    "verwendungszweck": "LST SAL 12/2024 - Stefan Bauer",
+    "gegenpartei": "Stefan Bauer",
+    "iban": "AT92 3522 9165 5781 9337"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -3840.0,
+    "verwendungszweck": "LST SAL 12/2024 - Lisa Wagner",
+    "gegenpartei": "Lisa Wagner",
+    "iban": "AT44 7807 8905 8736 4993"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -4608.0,
+    "verwendungszweck": "LST SAL 12/2024 - Thomas Müller",
+    "gegenpartei": "Thomas Müller",
+    "iban": "AT80 3369 7284 4122 9327"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -3645.0,
+    "verwendungszweck": "LST SAL 12/2024 - Anna Schreiber",
+    "gegenpartei": "Anna Schreiber",
+    "iban": "AT27 2143 5526 7798 6568"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -5850.0,
+    "verwendungszweck": "LST SAL 12/2024 - Michael Huber",
+    "gegenpartei": "Michael Huber",
+    "iban": "AT74 5377 1042 5634 5891"
+  },
+  {
+    "datum": "2024-12-25",
+    "betrag": -4025.0,
+    "verwendungszweck": "LST SAL 12/2024 - Sandra Koch",
+    "gegenpartei": "Sandra Koch",
+    "iban": "AT84 9022 3434 8316 9824"
+  },
+  {
+    "datum": "2024-12-30",
+    "betrag": -82.15,
+    "verwendungszweck": "Kontoführungsentgelt 12/2024",
+    "gegenpartei": "Erste Bank der oesterreichischen Sparkassen AG",
+    "iban": "AT11 2011 1287 1234 5678"
+  }
 ]
